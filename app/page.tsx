@@ -1,12 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import UploadModal from "./UploadModal";
 import MusicPlayer from "./MusicPlayer";
+import { fetchSongs } from "@/lib/fetchSongs"; // adjust path if needed
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioTitle, setAudioTitle] = useState<string | null>(null);
+  const [songs, setSongs] = useState<{ name: string; url: string }[]>([]);
+
+  useEffect(() => {
+    fetchSongs().then((songs) => {
+      console.log("Fetched songs:", songs);
+      setSongs(songs);
+    });
+  }, []);
 
   // Pass these setters to UploadModal so it can update them after upload
   return (
@@ -30,6 +39,20 @@ export default function Home() {
       {audioUrl && (
         <MusicPlayer src={audioUrl} title={audioTitle ?? undefined} />
       )}
+      <ul>
+        {songs.map((song) => (
+          <li
+            key={song.name}
+            onClick={() => {
+              setAudioUrl(song.url);
+              setAudioTitle(song.name);
+            }}
+            style={{ cursor: "pointer", margin: "8px 0" }}
+          >
+            {song.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
