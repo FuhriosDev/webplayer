@@ -5,9 +5,10 @@ import { supabase } from "@/lib/supabaseClient";
 
 type UploadModalProps = {
   onClose: () => void;
+  onUploadSuccess: (url: string, title: string) => void;
 };
 
-export default function UploadModal({ onClose }: UploadModalProps) {
+export default function UploadModal({ onClose, onUploadSuccess }: UploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -70,6 +71,7 @@ export default function UploadModal({ onClose }: UploadModalProps) {
           .getPublicUrl(`uploads/${safeFileName}`);
 
         setMessage(`Upload successful! Public URL: ${publicUrlData.publicUrl}`);
+        onUploadSuccess(publicUrlData.publicUrl, file.name);
       }
     } catch (uploadError) {
       console.error(uploadError);
