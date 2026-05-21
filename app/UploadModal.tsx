@@ -13,6 +13,7 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string>("");
+  const [songName, setSongName] = useState<string>("");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null;
@@ -47,6 +48,10 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
       setError("Select an audio file first.");
       return;
     }
+    if (!songName.trim()) {
+      setError("Please enter a song name.");
+      return;
+    }
 
     setUploading(true);
     setMessage("");
@@ -64,14 +69,24 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
       if (error) {
         setError("Upload failed: " + error.message);
       } else {
+        const filePath = `uploads/${safeFileName}`;
         // Get the public URL
         const { data: publicUrlData } = supabase
           .storage
-          .from("songs") // replace with your bucket name
-          .getPublicUrl(`uploads/${safeFileName}`);
+          .from("songs")
+          .getPublicUrl(filePath);
 
-        setMessage(`Upload successful! Public URL: ${publicUrlData.publicUrl}`);
-        onUploadSuccess(publicUrlData.publicUrl, file.name);
+        // Insert metadata
+        const { error: metaError } = await supabase
+          .from("songs_meta")
+          .insert([{ file_path: filePath, display_name: songName }]);
+
+        if (metaError) {
+          setError("Upload succeeded but saving song name failed: " + metaError.message);
+        } else {
+          setMessage(`Upload successful! Public URL: ${publicUrlData.publicUrl}`);
+          onUploadSuccess(publicUrlData.publicUrl, songName);
+        }
       }
     } catch (uploadError) {
       console.error(uploadError);
@@ -109,6 +124,20 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
         {error && (
           <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
+
+        <label className="mt-4 flex flex-col gap-2">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Song name
+          </span>
+          <input
+            type="text"
+            value={songName}
+            onChange={e => setSongName(e.target.value)}
+            className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            placeholder="Enter song name"
+            required
+          />
+        </label>
 
         <button
           onClick={handleUpload}

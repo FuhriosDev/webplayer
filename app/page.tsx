@@ -33,6 +33,7 @@ export default function Home() {
             setAudioUrl(url);
             setAudioTitle(title);
             setShowModal(false);
+            fetchSongs().then(setSongs); // <-- Add this line to refresh the list!
           }}
         />
       )}
