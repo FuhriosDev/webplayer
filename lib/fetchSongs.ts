@@ -30,6 +30,7 @@ export async function fetchSongs() {
         return {
           name: meta?.display_name || item.name,
           url: supabase.storage.from("songs").getPublicUrl(filePath).data.publicUrl,
+          filePath, // add this!
         };
       }) ?? []
   );
