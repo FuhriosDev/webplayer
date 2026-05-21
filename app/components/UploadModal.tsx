@@ -107,12 +107,24 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Choose audio
           </span>
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={handleFileChange}
-            className="rounded-xl border border-zinc-200 p-3 text-sm text-zinc-900 file:mr-4 file:rounded-full file:border-0 file:bg-zinc-100 file:px-4 file:py-2 file:text-sm file:font-semibold dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-          />
+          <div className="flex items-center gap-4">
+            <label
+              htmlFor="audio-upload"
+              className="cursor-pointer rounded-xl bg-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+            >
+              Select file
+              <input
+                id="audio-upload"
+                type="file"
+                accept="audio/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </label>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              {file ? file.name : "No file selected"}
+            </span>
+          </div>
         </label>
 
         {file && (
@@ -139,26 +151,27 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
           />
         </label>
 
-        <button
-          onClick={handleUpload}
-          disabled={uploading}
-          className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {uploading ? "Uploading..." : "Upload audio"}
-        </button>
+        <div className="flex justify-between mt-8">
+          <button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload audio"}
+          </button>
+          <button
+            onClick={onClose}
+            className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            Close
+          </button>
+        </div>
 
         {message && (
           <p className="mt-4 rounded-2xl bg-green-50 p-4 text-sm text-green-900 dark:bg-green-950/30 dark:text-green-300">
             {message}
           </p>
         )}
-
-        <button
-          onClick={onClose}
-          className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          Close
-        </button>
       </div>
     </div>
   );
