@@ -39,6 +39,12 @@ export default function SongList({ songs, refresh, onSelect }: SongListProps) {
     refresh();
   };
 
+  const handleShare = (filePath: string, songName: string) => {
+    const shareUrl = `${window.location.origin}/share/${encodeURIComponent(filePath)}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert("Share link copied to clipboard!");
+  };
+
   return (
     <div className="w-full max-w-xl mt-8 rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-xl font-semibold px-6 pt-6 pb-2 text-zinc-900 dark:text-zinc-50">Songs</h2>
@@ -54,18 +60,18 @@ export default function SongList({ songs, refresh, onSelect }: SongListProps) {
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   placeholder="New name"
-                  className="flex-1 mr-4 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="flex-1 mr-4 h-9 rounded border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(song.filePath)}
-                    className="rounded bg-green-600 px-3 py-1 text-white text-sm hover:bg-green-700"
+                    className="inline-flex h-9 items-center justify-center rounded bg-green-600 px-3 text-white text-sm hover:bg-green-700"
                   >
                     Save
                   </button>
                   <button
                     onClick={() => setEditing(null)}
-                    className="rounded bg-zinc-300 px-3 py-1 text-zinc-800 text-sm hover:bg-zinc-400 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                    className="inline-flex h-9 items-center justify-center rounded bg-zinc-300 px-3 text-zinc-800 text-sm hover:bg-zinc-400 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
                   >
                     Cancel
                   </button>
@@ -82,15 +88,39 @@ export default function SongList({ songs, refresh, onSelect }: SongListProps) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setEditing(song.filePath); setNewName(song.name); }}
-                    className="rounded bg-blue-600 px-3 py-1 text-white text-sm hover:bg-blue-700"
+                    aria-label="Edit song"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
                   >
-                    Edit
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleShare(song.filePath, song.name)}
+                    aria-label="Share song"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-green-600 text-white hover:bg-green-700"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <path d="M8.59 13.51l6.83 3.99" />
+                      <path d="M8.59 10.49l6.83-3.99" />
+                    </svg>
                   </button>
                   <button
                     onClick={() => setPendingDelete(song.filePath)}
-                    className="rounded bg-red-600 px-3 py-1 text-white text-sm hover:bg-red-700"
+                    aria-label="Delete song"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
                   >
-                    Delete
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
                   </button>
                 </div>
               </>

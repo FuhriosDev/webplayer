@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import UploadModal from "./components/UploadModal";
 import MusicPlayer from "./components/MusicPlayer";
-import { fetchSongs } from "@/lib/fetchSongs"; // adjust path if needed
+import { fetchSongs } from "@/lib/fetchSongs";
 import SongList from "./components/SongList";
 
 export default function Home() {
@@ -31,13 +31,12 @@ export default function Home() {
     setAudioTitle(name);
   };
 
-  // Pass these setters to UploadModal so it can update them after upload
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-black p-6">
       {!showModal && (
         <button
           onClick={() => setShowModal(true)}
-          className="rounded-xl bg-zinc-950 px-6 py-3 text-white font-semibold"
+          className="inline-flex h-9 items-center justify-center rounded bg-zinc-950 px-3 text-white text-sm font-semibold hover:bg-zinc-800"
         >
           Upload Audio
         </button>
