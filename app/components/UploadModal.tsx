@@ -8,7 +8,10 @@ type UploadModalProps = {
   onUploadSuccess: (url: string, title: string) => void;
 };
 
-export default function UploadModal({ onClose, onUploadSuccess }: UploadModalProps) {
+export default function UploadModal({
+  onClose,
+  onUploadSuccess,
+}: UploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -48,6 +51,7 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
       setError("Select an audio file first.");
       return;
     }
+
     if (!songName.trim()) {
       setError("Please enter a song name.");
       return;
@@ -69,20 +73,33 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
       if (error) {
         setError("Upload failed: " + error.message);
       } else {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !userData.user) {
+          setError("Please sign in before uploading.");
+          return;
+        }
+
         const filePath = `uploads/${safeFileName}`;
-        // Get the public URL
         const { data: publicUrlData } = supabase
           .storage
           .from("songs")
           .getPublicUrl(filePath);
 
-        // Insert metadata
         const { error: metaError } = await supabase
           .from("songs_meta")
-          .insert([{ file_path: filePath, display_name: songName }]);
+          .insert([
+            {
+              file_path: filePath,
+              display_name: songName,
+              user_id: userData.user.id,
+            },
+          ]);
 
         if (metaError) {
-          setError("Upload succeeded but saving song name failed: " + metaError.message);
+          setError(
+            "Upload succeeded but saving song name failed: " + metaError.message
+          );
         } else {
           setMessage(`Upload successful! Public URL: ${publicUrlData.publicUrl}`);
           onUploadSuccess(publicUrlData.publicUrl, songName);
@@ -107,29 +124,18 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Choose audio
           </span>
-          <div className="flex items-center gap-4">
-            <label
-              htmlFor="audio-upload"
-              className="cursor-pointer rounded-xl bg-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
-            >
-              Select file
-              <input
-                id="audio-upload"
-                type="file"
-                accept="audio/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </label>
-            <span className="text-sm text-zinc-700 dark:text-zinc-300">
-              {file ? file.name : "No file selected"}
-            </span>
-          </div>
+          <input
+            type="file"
+            accept="audio/*"
+            onChange={handleFileChange}
+            className="rounded-xl border border-zinc-200 p-3 text-sm text-zinc-900 file:mr-4 file:rounded-full file:border-0 file:bg-zinc-100 file:px-4 file:py-2 file:text-sm file:font-semibold dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+          />
         </label>
 
         {file && (
           <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-            Selected file: <strong>{file.name}</strong> ({Math.round(file.size / 1024)} KB)
+            Selected file: <strong>{file.name}</strong> (
+            {Math.round(file.size / 1024)} KB)
           </p>
         )}
 
@@ -144,7 +150,7 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
           <input
             type="text"
             value={songName}
-            onChange={e => setSongName(e.target.value)}
+            onChange={(e) => setSongName(e.target.value)}
             className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             placeholder="Enter song name"
             required
@@ -178,9 +184,8 @@ export default function UploadModal({ onClose, onUploadSuccess }: UploadModalPro
 }
 
 function sanitizeFileName(name: string) {
-  // Replace spaces with underscores, remove non-ASCII except dot and dash
   return name
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
-    .replace(/[^a-zA-Z0-9.\-_]/g, "_"); // Replace unsafe chars
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9.\-_]/g, "_");
 }
