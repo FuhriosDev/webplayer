@@ -1,37 +1,30 @@
 import { supabase } from "./supabaseClient";
 
 export async function fetchSongs() {
-  // Get all files
-  const { data: files, error: filesError } = await supabase.storage
-    .from("songs")
-    .list("uploads", { limit: 100, offset: 0 });
-
-  if (filesError) {
-    console.error("Error fetching songs:", filesError.message);
+  // Get the authenticated user
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user) {
+    console.error("User not authenticated");
     return [];
   }
 
-  // Get all metadata
-  const { data: metas, error: metasError } = await supabase
+  // Fetch user's songs from songs_meta table ordered by created_at
+  const { data: songs, error: songsError } = await supabase
     .from("songs_meta")
-    .select("*");
+    .select("file_path, display_name")
+    .eq("user_id", userData.user.id)
+    .order("created_at", { ascending: false });
 
-  if (metasError) {
-    console.error("Error fetching song metadata:", metasError.message);
+  if (songsError) {
+    console.error("Error fetching songs:", songsError.message);
     return [];
   }
 
-  return (
-    files
-      ?.filter((item) => item.name)
-      .map((item) => {
-        const filePath = `uploads/${item.name}`;
-        const meta = metas?.find((m) => m.file_path === filePath);
-        return {
-          name: meta?.display_name || item.name,
-          url: supabase.storage.from("songs").getPublicUrl(filePath).data.publicUrl,
-          filePath, // add this!
-        };
-      }) ?? []
-  );
+  // Map metadata rows to playable songs
+  return songs?.map((song) => ({
+    name: song.display_name,
+    url: supabase.storage.from("songs").getPublicUrl(song.file_path).data.publicUrl,
+    filePath: song.file_path,
+  })) ?? [];
 }

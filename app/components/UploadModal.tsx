@@ -124,12 +124,26 @@ export default function UploadModal({
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Choose audio
           </span>
+
+          <div className="relative">
+            <button
+              type="button"
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            >
+              Select audio file
+            </button>
+
           <input
             type="file"
             accept="audio/*"
             onChange={handleFileChange}
-            className="rounded-xl border border-zinc-200 p-3 text-sm text-zinc-900 file:mr-4 file:rounded-full file:border-0 file:bg-zinc-100 file:px-4 file:py-2 file:text-sm file:font-semibold dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
+          </div>
+
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {file ? file.name : "No file selected"}
+          </p>
         </label>
 
         {file && (
