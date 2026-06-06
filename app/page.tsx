@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import UploadModal from "./components/UploadModal";
 import MusicPlayer from "./components/MusicPlayer";
 import SongList from "./components/SongList";
 import AuthPanel from "./components/AuthPanel";
 import { fetchSongs } from "@/lib/fetchSongs";
+import SignInButton from "./components/SignInButton";
+import HeaderBar from "./components/HeaderBar";
 
 type Song = {
   name: string;
@@ -20,6 +22,10 @@ export default function Home() {
   const [audioTitle, setAudioTitle] = useState<string | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const avatarRef = useRef<HTMLButtonElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const refreshSongs = async () => {
     const songs = await fetchSongs();
@@ -48,15 +54,51 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setSongs([]);
-      // close player when signed out
       setAudioUrl(null);
       setAudioTitle(null);
       setCurrentFilePath(null);
+      setProfileOpen(false);
       return;
     }
 
     refreshSongs();
   }, [user]);
+
+  // close profile dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleDocClick(e: MouseEvent) {
+      if (!profileOpen) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (
+        avatarRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setProfileOpen(false);
+    }
+
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setProfileOpen(false);
+    }
+
+    document.addEventListener("click", handleDocClick);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("click", handleDocClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [profileOpen]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showModal]);
 
   const handleSelectSong = (url: string, name: string, filePath?: string) => {
     setAudioUrl(url);
@@ -64,65 +106,60 @@ export default function Home() {
     setCurrentFilePath(filePath ?? null);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setProfileOpen(false);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center bg-zinc-50 dark:bg-black p-6">
-      <div className="w-full max-w-3xl">
-        <AuthPanel />
-      </div>
+    <div className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${audioUrl ? "pb-24" : ""}`}>
+      {user && (
+        <HeaderBar
+          user={user}
+          onUpload={() => setShowModal(true)}
+          onSignOut={handleSignOut}
+        />
+      )}
 
-      {user ? (
-        <>
-          <div className="mt-6 flex w-full max-w-3xl justify-start">
-            {!showModal && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="inline-flex h-9 items-center justify-center rounded bg-zinc-950 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
-              >
-                Upload Audio
-              </button>
-            )}
-          </div>
-
-          {showModal && (
-            <UploadModal
-              onClose={() => setShowModal(false)}
-              onUploadSuccess={() => {
-                // Do NOT open the player after upload.
-                setShowModal(false);
-                refreshSongs();
-              }}
-            />
-          )}
-
-          {audioUrl && (
-            <div className="w-full max-w-3xl mt-6">
-              <MusicPlayer src={audioUrl} title={audioTitle ?? undefined} />
-            </div>
-          )}
-
-          <div className="w-full max-w-3xl mt-6">
-            <SongList
-              songs={songs}
-              refresh={refreshSongs}
-              onSelect={(url, name, filePath) => handleSelectSong(url, name, filePath)}
-              onDelete={(deletedFilePath) => {
-                // close player if deleted file is currently playing
-                if (deletedFilePath && deletedFilePath === currentFilePath) {
-                  setAudioUrl(null);
-                  setAudioTitle(null);
-                  setCurrentFilePath(null);
-                }
-                refreshSongs();
-              }}
-            />
-          </div>
-        </>
-      ) : (
-        <div className="w-full max-w-3xl mt-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-zinc-700 dark:text-zinc-300">
-            Please sign in to upload songs and manage your library.
-          </p>
+      {/* Main content: flex-1 so it only fills remaining space and doesn't force extra scroll */}
+      <main className="flex-1 flex flex-col items-center p-6">
+        <div className="w-full max-w-3xl">
+          {!user && <SignInButton />}
         </div>
+
+        {user && (
+          <>
+            {showModal && (
+              <UploadModal
+                onClose={() => setShowModal(false)}
+                onUploadSuccess={() => {
+                  setShowModal(false);
+                  refreshSongs();
+                }}
+              />
+            )}
+
+            <div className="w-full max-w-3xl mt-6">
+              <SongList
+                songs={songs}
+                refresh={refreshSongs}
+                onSelect={(url, name, filePath) => handleSelectSong(url, name, filePath)}
+                onDelete={(deletedFilePath) => {
+                  if (deletedFilePath && deletedFilePath === currentFilePath) {
+                    setAudioUrl(null);
+                    setAudioTitle(null);
+                    setCurrentFilePath(null);
+                  }
+                  refreshSongs();
+                }}
+              />
+            </div>
+          </>
+        )}
+      </main>
+
+      {audioUrl && (
+        <MusicPlayer src={audioUrl} title={audioTitle ?? undefined} />
       )}
     </div>
   );

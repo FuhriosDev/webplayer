@@ -44,6 +44,12 @@ export default function UploadModal({
 
     setError(null);
     setFile(selectedFile);
+
+    // Suggest a song name from the filename (remove extension) if the input is empty
+    const baseName = selectedFile.name.replace(/\.[^/.]+$/, "");
+    if (!songName.trim()) {
+      setSongName(baseName);
+    }
   };
 
   const handleUpload = async () => {
@@ -121,23 +127,28 @@ export default function UploadModal({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-black p-6">
-      <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-8 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950 max-h-[80vh] overflow-auto">
         <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-50">
           Upload an audio file
         </h1>
 
         <label className="mt-8 flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Choose audio
-          </span>
-
           <div className="relative">
             <button
               type="button"
               className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             >
-              Select audio file
+              {file ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate block max-w-[80%]">{file.name}</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {Math.round(file.size / 1024 / 1024 * 100) / 100} MB
+                  </span>
+                </div>
+              ) : (
+                "Select audio file"
+              )}
             </button>
 
             <input
@@ -147,27 +158,9 @@ export default function UploadModal({
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             />
           </div>
-
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {file ? file.name : "No file selected"}
-          </p>
         </label>
 
-        {file && (
-          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-            Selected file: <strong>{file.name}</strong> (
-            {Math.round(file.size / 1024)} KB)
-          </p>
-        )}
-
-        {error && (
-          <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
-
         <label className="mt-4 flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Song name
-          </span>
           <input
             type="text"
             value={songName}
@@ -177,6 +170,10 @@ export default function UploadModal({
             required
           />
         </label>
+
+        {error && (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+        )}
 
         <div className="flex justify-between mt-8">
           <button
