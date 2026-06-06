@@ -19,6 +19,7 @@ export default function Home() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioTitle, setAudioTitle] = useState<string | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
 
   const refreshSongs = async () => {
     const songs = await fetchSongs();
@@ -47,15 +48,20 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setSongs([]);
+      // close player when signed out
+      setAudioUrl(null);
+      setAudioTitle(null);
+      setCurrentFilePath(null);
       return;
     }
 
     refreshSongs();
   }, [user]);
 
-  const handleSelectSong = (url: string, name: string) => {
+  const handleSelectSong = (url: string, name: string, filePath?: string) => {
     setAudioUrl(url);
     setAudioTitle(name);
+    setCurrentFilePath(filePath ?? null);
   };
 
   return (
@@ -80,9 +86,8 @@ export default function Home() {
           {showModal && (
             <UploadModal
               onClose={() => setShowModal(false)}
-              onUploadSuccess={(url: string, title: string) => {
-                setAudioUrl(url);
-                setAudioTitle(title);
+              onUploadSuccess={() => {
+                // Do NOT open the player after upload.
                 setShowModal(false);
                 refreshSongs();
               }}
@@ -99,7 +104,16 @@ export default function Home() {
             <SongList
               songs={songs}
               refresh={refreshSongs}
-              onSelect={handleSelectSong}
+              onSelect={(url, name, filePath) => handleSelectSong(url, name, filePath)}
+              onDelete={(deletedFilePath) => {
+                // close player if deleted file is currently playing
+                if (deletedFilePath && deletedFilePath === currentFilePath) {
+                  setAudioUrl(null);
+                  setAudioTitle(null);
+                  setCurrentFilePath(null);
+                }
+                refreshSongs();
+              }}
             />
           </div>
         </>

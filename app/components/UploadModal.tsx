@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 type UploadModalProps = {
   onClose: () => void;
-  onUploadSuccess: (url: string, title: string) => void;
+  onUploadSuccess?: (title?: string) => void;
 };
 
 export default function UploadModal({
@@ -62,37 +62,44 @@ export default function UploadModal({
     setError(null);
 
     try {
+      // Get user first
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !userData.user) {
+        setError("Please sign in before uploading.");
+        setUploading(false);
+        return;
+      }
+
+      const userId = userData.user.id;
       const safeFileName = sanitizeFileName(file.name);
-      const { data, error } = await supabase.storage
+      const filePath = `uploads/${userId}/${safeFileName}`;
+
+      // Upload to user-specific path
+      const { error: uploadError } = await supabase.storage
         .from("songs")
-        .upload(`uploads/${safeFileName}`, file, {
+        .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
         });
 
-      if (error) {
-        setError("Upload failed: " + error.message);
+      if (uploadError) {
+        setError("Upload failed: " + uploadError.message);
       } else {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !userData.user) {
-          setError("Please sign in before uploading.");
-          return;
-        }
-
-        const filePath = `uploads/${safeFileName}`;
+        // Get public URL (kept for display; not returned to parent)
         const { data: publicUrlData } = supabase
           .storage
           .from("songs")
           .getPublicUrl(filePath);
 
+        // Save metadata with matching file_path
         const { error: metaError } = await supabase
           .from("songs_meta")
           .insert([
             {
               file_path: filePath,
               display_name: songName,
-              user_id: userData.user.id,
+              user_id: userId,
             },
           ]);
 
@@ -101,8 +108,8 @@ export default function UploadModal({
             "Upload succeeded but saving song name failed: " + metaError.message
           );
         } else {
-          setMessage(`Upload successful! Public URL: ${publicUrlData.publicUrl}`);
-          onUploadSuccess(publicUrlData.publicUrl, songName);
+          setMessage("Upload successful!");
+          onUploadSuccess?.(songName);
         }
       }
     } catch (uploadError) {
@@ -133,12 +140,12 @@ export default function UploadModal({
               Select audio file
             </button>
 
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={handleFileChange}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          />
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileChange}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
           </div>
 
           <p className="text-sm text-zinc-600 dark:text-zinc-400">

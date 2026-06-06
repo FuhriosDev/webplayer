@@ -11,10 +11,11 @@ type Song = {
 type SongListProps = {
   songs: Song[];
   refresh: () => void;
-  onSelect: (url: string, name: string) => void;
+  onSelect: (url: string, name: string, filePath: string) => void;
+  onDelete?: (filePath: string) => void;
 };
 
-export default function SongList({ songs, refresh, onSelect }: SongListProps) {
+export default function SongList({ songs, refresh, onSelect, onDelete }: SongListProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -33,16 +34,37 @@ export default function SongList({ songs, refresh, onSelect }: SongListProps) {
   };
 
   const handleDeleteConfirm = async () => {
-    await supabase.storage.from("songs").remove([pendingDelete!]);
-    await supabase.from("songs_meta").delete().eq("file_path", pendingDelete!);
-    setPendingDelete(null);
-    refresh();
+    const fileToDelete = pendingDelete!;
+    // delete from storage first
+    const { error: storageError } = await supabase.storage.from("songs").remove([fileToDelete]);
+
+    if (storageError) {
+      alert("Failed to delete file: " + storageError.message);
+      setPendingDelete(null);
+      return;
+    }
+
+    // then delete metadata
+    const { error: metaError } = await supabase.from("songs_meta").delete().eq("file_path", fileToDelete);
+
+    if (metaError) {
+      alert("Failed to delete metadata: " + metaError.message);
+    } else {
+      setPendingDelete(null);
+      refresh();
+      if (onDelete) onDelete(fileToDelete);
+    }
   };
 
   const handleShare = (filePath: string, songName: string) => {
-    const shareUrl = `${window.location.origin}/share/${encodeURIComponent(filePath)}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert("Share link copied to clipboard!");
+    try {
+      const shareUrl = `${window.location.origin}/share/${encodeURIComponent(filePath)}`;
+      navigator.clipboard.writeText(shareUrl);
+      alert("Share link copied to clipboard!");
+    } catch (err) {
+      // fallback if clipboard is not available
+      alert(`Share link: ${window.location.origin}/share/${encodeURIComponent(filePath)}`);
+    }
   };
 
   return (
@@ -81,7 +103,7 @@ export default function SongList({ songs, refresh, onSelect }: SongListProps) {
               <>
                 <span
                   className="flex-1 text-zinc-800 dark:text-zinc-100 cursor-pointer hover:underline"
-                  onClick={() => onSelect(song.url, song.name)}
+                  onClick={() => onSelect(song.url, song.name, song.filePath)}
                 >
                   {song.name}
                 </span>
