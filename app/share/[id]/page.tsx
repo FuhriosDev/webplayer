@@ -83,13 +83,11 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black">
-      {user && (
         <HeaderBar
           user={user}
           onUpload={() => setShowModal(true)}
           onSignOut={handleSignOut}
         />
-      )}
 
       {showModal && (
         <UploadModal
@@ -102,8 +100,6 @@ export default function SharePage() {
       )}
 
       <main className="flex-1 flex flex-col items-center p-6">
-        {!user && <SignInButton />}
-
         <div className="w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-6">
             {songName}

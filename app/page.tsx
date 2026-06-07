@@ -113,20 +113,14 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${audioUrl ? "pb-24" : ""}`}>
-      {user && (
         <HeaderBar
           user={user}
           onUpload={() => setShowModal(true)}
           onSignOut={handleSignOut}
         />
-      )}
 
       {/* Main content: flex-1 so it only fills remaining space and doesn't force extra scroll */}
       <main className="flex-1 flex flex-col items-center p-6">
-        <div className="w-full max-w-3xl">
-          {!user && <SignInButton />}
-        </div>
-
         {user && (
           <>
             {showModal && (
