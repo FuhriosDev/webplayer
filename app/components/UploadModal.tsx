@@ -106,6 +106,7 @@ export default function UploadModal({
               file_path: filePath,
               display_name: songName,
               user_id: userId,
+              share_token: crypto.randomUUID(),
             },
           ]);
 

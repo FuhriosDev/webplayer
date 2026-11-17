@@ -10,7 +10,7 @@ import UploadModal from "@/app/components/UploadModal";
 
 export default function SharePage() {
   const params = useParams();
-  const filePath = decodeURIComponent(params.id as string);
+  const shareToken = params.shareToken as string;
 
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [songName, setSongName] = useState<string>("Song");
@@ -23,15 +23,19 @@ export default function SharePage() {
   useEffect(() => {
     const fetchSong = async () => {
       try {
-        const { data } = supabase.storage.from("songs").getPublicUrl(filePath);
-        const { data: metas } = await supabase
-          .from("songs_meta")
-          .select("display_name")
-          .eq("file_path", filePath)
-          .single();
+        const response = await fetch(`/api/share/${shareToken}`);
+        if (!response.ok) {
+          throw new Error("Song not found or cannot be accessed.");
+        }
+        const song: { display_name: string; file_path: string } =
+          await response.json();
+
+        const { data } = supabase.storage
+          .from("songs")
+          .getPublicUrl(song.file_path);
 
         setPublicUrl(data.publicUrl);
-        setSongName(metas?.display_name || filePath.split("/").pop() || "Song");
+        setSongName(song.display_name || "Song");
       } catch (err) {
         console.error("Error loading song:", err);
         setError("Song not found or cannot be accessed.");
@@ -41,7 +45,7 @@ export default function SharePage() {
     };
 
     fetchSong();
-  }, [filePath]);
+  }, [shareToken]);
 
   useEffect(() => {
     const initSession = async () => {

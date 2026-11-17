@@ -12,7 +12,7 @@ export async function fetchSongs() {
   // Fetch user's songs from songs_meta table ordered by created_at
   const { data: songs, error: songsError } = await supabase
     .from("songs_meta")
-    .select("file_path, display_name")
+    .select("file_path, display_name, share_token")
     .eq("user_id", userData.user.id)
     .order("created_at", { ascending: false });
 
@@ -26,5 +26,6 @@ export async function fetchSongs() {
     name: song.display_name,
     url: supabase.storage.from("songs").getPublicUrl(song.file_path).data.publicUrl,
     filePath: song.file_path,
+    shareToken: song.share_token,
   })) ?? [];
 }

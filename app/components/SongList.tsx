@@ -6,6 +6,7 @@ type Song = {
   name: string;
   url: string;
   filePath: string;
+  shareToken: string;
 };
 
 type SongListProps = {
@@ -56,14 +57,14 @@ export default function SongList({ songs, refresh, onSelect, onDelete }: SongLis
     }
   };
 
-  const handleShare = (filePath: string, songName: string) => {
+  const handleShare = (shareToken: string) => {
     try {
-      const shareUrl = `${window.location.origin}/share/${encodeURIComponent(filePath)}`;
+      const shareUrl = `${window.location.origin}/share/${encodeURIComponent(shareToken)}`;
       navigator.clipboard.writeText(shareUrl);
       alert("Share link copied to clipboard!");
     } catch (err) {
       // fallback if clipboard is not available
-      alert(`Share link: ${window.location.origin}/share/${encodeURIComponent(filePath)}`);
+      alert(`Share link: ${window.location.origin}/share/${encodeURIComponent(shareToken)}`);
     }
   };
 
@@ -119,7 +120,7 @@ export default function SongList({ songs, refresh, onSelect, onDelete }: SongLis
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleShare(song.filePath, song.name)}
+                    onClick={() => handleShare(song.shareToken)}
                     aria-label="Share song"
                     className="inline-flex h-9 w-9 items-center justify-center rounded bg-green-600 text-white hover:bg-green-700"
                   >

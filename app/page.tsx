@@ -13,6 +13,7 @@ type Song = {
   name: string;
   url: string;
   filePath: string;
+  shareToken: string;
 };
 
 export default function Home() {
