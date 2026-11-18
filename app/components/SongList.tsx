@@ -7,16 +7,24 @@ type Song = {
   url: string;
   filePath: string;
   shareToken: string;
+  isOwner: boolean;
 };
 
 type SongListProps = {
   songs: Song[];
+  userId: string;
   refresh: () => void;
   onSelect: (url: string, name: string, filePath: string) => void;
   onDelete?: (filePath: string) => void;
 };
 
-export default function SongList({ songs, refresh, onSelect, onDelete }: SongListProps) {
+export default function SongList({
+  songs,
+  userId,
+  refresh,
+  onSelect,
+  onDelete,
+}: SongListProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -68,6 +76,27 @@ export default function SongList({ songs, refresh, onSelect, onDelete }: SongLis
     }
   };
 
+  const handleUnsave = async (shareToken: string) => {
+    const { data: deletedRows, error } = await supabase
+      .from("saved_songs")
+      .delete()
+      .eq("user_id", userId)
+      .eq("share_token", shareToken)
+      .select("share_token");
+
+    if (error) {
+      alert("Failed to remove saved song: " + error.message);
+      return;
+    }
+
+    if (!deletedRows?.length) {
+      alert("No saved row was deleted. Check the saved_songs DELETE policy.");
+      return;
+    }
+
+    await refresh();
+  };
+
   return (
     <div className="w-full max-w-xl mt-8 rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-xl font-semibold px-6 pt-6 pb-2 text-zinc-900 dark:text-zinc-50">Songs</h2>
@@ -109,16 +138,21 @@ export default function SongList({ songs, refresh, onSelect, onDelete }: SongLis
                   {song.name}
                 </span>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => { setEditing(song.filePath); setNewName(song.name); }}
-                    aria-label="Edit song"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                    </svg>
-                  </button>
+                  {song.isOwner && (
+                    <button
+                      onClick={() => {
+                        setEditing(song.filePath);
+                        setNewName(song.name);
+                      }}
+                      aria-label="Edit song"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleShare(song.shareToken)}
                     aria-label="Share song"
@@ -132,19 +166,35 @@ export default function SongList({ songs, refresh, onSelect, onDelete }: SongLis
                       <path d="M8.59 10.49l6.83-3.99" />
                     </svg>
                   </button>
-                  <button
-                    onClick={() => setPendingDelete(song.filePath)}
-                    aria-label="Delete song"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                      <path d="M10 11v6" />
-                      <path d="M14 11v6" />
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                    </svg>
-                  </button>
+                  {song.isOwner ? (
+                    <button
+                      onClick={() => setPendingDelete(song.filePath)}
+                      aria-label="Delete song"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleUnsave(song.shareToken)}
+                      aria-label="Unsave song"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </>
             )}

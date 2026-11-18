@@ -18,6 +18,11 @@ export default function SharePage() {
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [checkingSaved, setCheckingSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,6 +69,62 @@ export default function SharePage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    setIsSaved(false);
+    setSaveError(null);
+
+    if (!user) {
+      setCheckingSaved(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const checkSaved = async () => {
+      setCheckingSaved(true);
+
+      try {
+        const [savedResult, ownerResult] = await Promise.all([
+          supabase
+            .from("saved_songs")
+            .select("share_token")
+            .eq("user_id", user.id)
+            .eq("share_token", shareToken)
+            .maybeSingle(),
+
+          supabase
+            .from("songs_meta")
+            .select("share_token")
+            .eq("user_id", user.id)
+            .eq("share_token", shareToken)
+            .maybeSingle(),
+        ]);
+
+        if (savedResult.error) throw savedResult.error;
+        if (ownerResult.error) throw ownerResult.error;
+
+        if (!cancelled) {
+          setIsSaved(Boolean(savedResult.data));
+          setIsOwner(Boolean(ownerResult.data));
+        }
+      } catch (err) {
+        console.error("Error checking saved song:", err);
+      } finally {
+        if (!cancelled) {
+          setCheckingSaved(false);
+        }
+      }
+    };
+
+    void checkSaved();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, shareToken]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-black">
@@ -83,6 +144,34 @@ export default function SharePage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+  };
+
+  const handleSaveSong = async () => {
+    if (!user || isOwner || saving || isSaved) return;
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const { error } = await supabase.from("saved_songs").insert({
+        user_id: user.id,
+        share_token: shareToken,
+      });
+
+      if (error?.code === "23505") {
+        setIsSaved(true);
+        return;
+      }
+
+      if (error) throw error;
+
+      setIsSaved(true);
+    } catch (err) {
+      console.error("Error saving song:", err);
+      setSaveError("Failed to save song. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -109,6 +198,30 @@ export default function SharePage() {
             {songName}
           </h1>
           {publicUrl && <MusicPlayer src={publicUrl} title={songName} />}
+          {user && !isOwner && (
+  <button
+    type="button"
+    onClick={handleSaveSong}
+    disabled={checkingSaved || saving || isSaved}
+    className="mt-4 rounded bg-zinc-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {checkingSaved
+      ? "Checking..."
+      : saving
+        ? "Saving..."
+        : isSaved
+          ? "Saved"
+          : "Save song"}
+  </button>
+)}
+
+{user && isOwner && <p>Already in your library</p>}
+
+{saveError && (
+  <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+    {saveError}
+  </p>
+)}
         </div>
       </main>
     </div>

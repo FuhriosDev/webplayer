@@ -14,6 +14,7 @@ type Song = {
   url: string;
   filePath: string;
   shareToken: string;
+  isOwner: boolean;
 };
 
 export default function Home() {
@@ -137,6 +138,7 @@ export default function Home() {
             <div className="w-full max-w-3xl mt-6">
               <SongList
                 songs={songs}
+                userId={user.id}
                 refresh={refreshSongs}
                 onSelect={(url, name, filePath) => handleSelectSong(url, name, filePath)}
                 onDelete={(deletedFilePath) => {
