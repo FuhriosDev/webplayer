@@ -25,6 +25,8 @@ export default function Home() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [playQueue, setPlayQueue] = useState<Song[]>([]);
+  const [playRequest, setPlayRequest] = useState(0);
 
   const avatarRef = useRef<HTMLButtonElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -102,15 +104,35 @@ export default function Home() {
     };
   }, [showModal]);
 
-  const handleSelectSong = (url: string, name: string, filePath?: string) => {
+  const handleSelectSong = (
+    url: string,
+    name: string,
+    filePath: string,
+    queue: Song[]
+  ) => {
     setAudioUrl(url);
     setAudioTitle(name);
-    setCurrentFilePath(filePath ?? null);
+    setCurrentFilePath(filePath);
+    setPlayQueue(queue);
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setProfileOpen(false);
+  };
+
+  const handleSongEnded = () => {
+    const currentIndex = playQueue.findIndex(
+      (song) => song.filePath === currentFilePath
+    );
+    const nextSong = playQueue[currentIndex + 1];
+
+    if (!nextSong) return;
+
+    setAudioUrl(nextSong.url);
+    setAudioTitle(nextSong.name);
+    setCurrentFilePath(nextSong.filePath);
+    setPlayRequest((request) => request + 1);
   };
 
   return (
@@ -140,7 +162,9 @@ export default function Home() {
                 songs={songs}
                 userId={user.id}
                 refresh={refreshSongs}
-                onSelect={(url, name, filePath) => handleSelectSong(url, name, filePath)}
+                onSelect={(url, name, filePath, queue) =>
+  handleSelectSong(url, name, filePath, queue)
+}
                 onDelete={(deletedFilePath) => {
                   if (deletedFilePath && deletedFilePath === currentFilePath) {
                     setAudioUrl(null);
@@ -156,7 +180,13 @@ export default function Home() {
       </main>
 
       {audioUrl && (
-        <MusicPlayer src={audioUrl} title={audioTitle ?? undefined} />
+        <MusicPlayer
+          src={audioUrl}
+          title={audioTitle ?? undefined}
+          onEnded={handleSongEnded}
+          playRequest={playRequest}
+          autoPlay
+        />
       )}
     </div>
   );

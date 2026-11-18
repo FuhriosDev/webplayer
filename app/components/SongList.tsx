@@ -14,7 +14,12 @@ type SongListProps = {
   songs: Song[];
   userId: string;
   refresh: () => void;
-  onSelect: (url: string, name: string, filePath: string) => void;
+  onSelect: (
+    url: string,
+    name: string,
+    filePath: string,
+    queue: Song[]
+  ) => void;
   onDelete?: (filePath: string) => void;
 };
 
@@ -165,7 +170,7 @@ export default function SongList({
               <>
                 <span
                   className="flex-1 text-zinc-800 dark:text-zinc-100 cursor-pointer hover:underline"
-                  onClick={() => onSelect(song.url, song.name, song.filePath)}
+                  onClick={() => onSelect(song.url, song.name, song.filePath, visibleSongs)}
                 >
                   {song.name}
                 </span>

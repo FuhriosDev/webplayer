@@ -1,13 +1,32 @@
 "use client";
 
-import React from "react";
+import { useEffect, useRef } from "react";
 
 type MusicPlayerProps = {
   src: string;
   title?: string;
+  onEnded?: () => void;
+  playRequest?: number;
+  autoPlay?: boolean;
 };
 
-export default function MusicPlayer({ src, title }: MusicPlayerProps) {
+export default function MusicPlayer({
+  src,
+  title,
+  onEnded,
+  playRequest = 0,
+  autoPlay = false,
+}: MusicPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (!autoPlay || !src) return;
+
+    void audioRef.current?.play().catch((error) => {
+      console.error("Could not start playback:", error);
+    });
+  }, [autoPlay, src, playRequest]);
+
   if (!src) return null;
 
   return (
@@ -17,7 +36,13 @@ export default function MusicPlayer({ src, title }: MusicPlayerProps) {
           {title || "Now playing"}
         </div>
 
-        <audio controls src={src} className="w-full min-w-0 dark:bg-zinc-900" />
+        <audio
+          ref={audioRef}
+          controls
+          src={src}
+          onEnded={onEnded}
+          className="w-full min-w-0 dark:bg-zinc-900"
+        />
       </div>
     </div>
   );
