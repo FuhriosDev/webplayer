@@ -18,6 +18,14 @@ type SongListProps = {
   onDelete?: (filePath: string) => void;
 };
 
+type SongFilter = "all" | "uploads" | "saved";
+
+const filters: { id: SongFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "uploads", label: "Uploads" },
+  { id: "saved", label: "Saved" },
+];
+
 export default function SongList({
   songs,
   userId,
@@ -28,6 +36,13 @@ export default function SongList({
   const [editing, setEditing] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SongFilter>("all");
+
+  const visibleSongs = songs.filter((song) => {
+    if (filter === "uploads") return song.isOwner;
+    if (filter === "saved") return !song.isOwner;
+    return true;
+  });
 
   const handleEdit = async (filePath: string) => {
     await supabase
@@ -100,8 +115,25 @@ export default function SongList({
   return (
     <div className="w-full max-w-xl mt-8 rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="text-xl font-semibold px-6 pt-6 pb-2 text-zinc-900 dark:text-zinc-50">Songs</h2>
+      <div className="px-6 pb-4">
+        <div className="flex gap-2">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                filter === f.id
+                  ? "bg-blue-600 text-white shadow-md hover:bg-blue-700"
+                  : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <ul>
-        {songs.map((song) => (
+        {visibleSongs.map((song) => (
           <li
             key={song.filePath}
             className="flex items-center justify-between px-6 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"

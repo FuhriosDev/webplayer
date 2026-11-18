@@ -75,12 +75,23 @@ export default function AuthPanel() {
     setSession(null);
   };
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (mode === "signin") {
+      void signIn();
+    } else {
+      void signUp();
+    }
+  };
+
   if (session?.user) {
     return (
       <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-3">
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            Signed in as <span className="font-semibold">{session.user.email}</span>
+            Signed in as{" "}
+            <span className="font-semibold">{session.user.email}</span>
           </p>
           <button
             onClick={signOut}
@@ -120,7 +131,7 @@ export default function AuthPanel() {
         </button>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
           Email
           <input
@@ -144,7 +155,7 @@ export default function AuthPanel() {
         </label>
 
         <button
-          onClick={mode === "signin" ? signIn : signUp}
+          type="submit"
           disabled={loading}
           className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -154,7 +165,7 @@ export default function AuthPanel() {
         {message && (
           <p className="text-sm text-zinc-700 dark:text-zinc-300">{message}</p>
         )}
-      </div>
+      </form>
     </div>
   );
 }
