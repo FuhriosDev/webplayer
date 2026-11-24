@@ -8,14 +8,21 @@ import AuthPanel from "./components/AuthPanel";
 import { fetchSongs } from "@/lib/fetchSongs";
 import SignInButton from "./components/SignInButton";
 import HeaderBar from "./components/HeaderBar";
+import PlaylistPanel from "./components/PlaylistPanel";
+import {
+  fetchPlaylists,
+  type Playlist,
+} from "@/lib/playlists";
 
 type Song = {
   name: string;
   url: string;
   filePath: string;
   shareToken: string;
-  isOwner: boolean;
+  isOwner?: boolean;
 };
+
+type LibraryView = "songs" | "playlists";
 
 export default function Home() {
   const [user, setUser] = useState<any | null>(null);
@@ -27,6 +34,9 @@ export default function Home() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [playQueue, setPlayQueue] = useState<Song[]>([]);
   const [playRequest, setPlayRequest] = useState(0);
+  const [playlistRefreshKey, setPlaylistRefreshKey] = useState(0);
+  const [libraryView, setLibraryView] = useState<LibraryView>("songs");
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
 
   const avatarRef = useRef<HTMLButtonElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -34,6 +44,11 @@ export default function Home() {
   const refreshSongs = async () => {
     const songs = await fetchSongs();
     setSongs(songs);
+  };
+
+  const refreshPlaylists = async () => {
+    const result = await fetchPlaylists();
+    setPlaylists(result);
   };
 
   useEffect(() => {
@@ -58,6 +73,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       setSongs([]);
+      setPlaylists([]);
       setAudioUrl(null);
       setAudioTitle(null);
       setCurrentFilePath(null);
@@ -65,7 +81,8 @@ export default function Home() {
       return;
     }
 
-    refreshSongs();
+    void refreshSongs();
+    void refreshPlaylists();
   }, [user]);
 
   // close profile dropdown when clicking outside or pressing Escape
@@ -139,7 +156,6 @@ export default function Home() {
     <div className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${audioUrl ? "pb-24" : ""}`}>
         <HeaderBar
           user={user}
-          onUpload={() => setShowModal(true)}
           onSignOut={handleSignOut}
         />
 
@@ -158,22 +174,73 @@ export default function Home() {
             )}
 
             <div className="w-full max-w-3xl mt-6">
-              <SongList
-                songs={songs}
-                userId={user.id}
-                refresh={refreshSongs}
-                onSelect={(url, name, filePath, queue) =>
-  handleSelectSong(url, name, filePath, queue)
-}
-                onDelete={(deletedFilePath) => {
-                  if (deletedFilePath && deletedFilePath === currentFilePath) {
-                    setAudioUrl(null);
-                    setAudioTitle(null);
-                    setCurrentFilePath(null);
+              <div
+                className="flex border-b border-zinc-200 dark:border-zinc-800"
+                role="tablist"
+                aria-label="Library"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={libraryView === "songs"}
+                  onClick={() => setLibraryView("songs")}
+                  className={`border-b-2 px-5 py-3 text-sm font-semibold ${
+                    libraryView === "songs"
+                      ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
+                      : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                  }`}
+                >
+                  Songs
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={libraryView === "playlists"}
+                  onClick={() => setLibraryView("playlists")}
+                  className={`border-b-2 px-5 py-3 text-sm font-semibold ${
+                    libraryView === "playlists"
+                      ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
+                      : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                  }`}
+                >
+                  Playlists
+                </button>
+              </div>
+
+              <div hidden={libraryView !== "songs"}>
+                <SongList
+                  songs={songs}
+                  userId={user.id}
+                  refresh={refreshSongs}
+                  onUpload={() => setShowModal(true)}
+                  onPlaylistChange={() =>
+                    setPlaylistRefreshKey((key) => key + 1)
                   }
-                  refreshSongs();
-                }}
-              />
+                  onSelect={(url, name, filePath, queue) =>
+                    handleSelectSong(url, name, filePath, queue)
+                  }
+                  onDelete={(deletedFilePath) => {
+                    if (
+                      deletedFilePath &&
+                      deletedFilePath === currentFilePath
+                    ) {
+                      setAudioUrl(null);
+                      setAudioTitle(null);
+                      setCurrentFilePath(null);
+                    }
+                    refreshSongs();
+                  }}
+                />
+              </div>
+
+              <div hidden={libraryView !== "playlists"}>
+                <PlaylistPanel
+                  userId={user.id}
+                  playlists={playlists}
+                  onPlaylistsChange={setPlaylists}
+                />
+              </div>
             </div>
           </>
         )}

@@ -1,0 +1,200 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import HeaderBar from "@/app/components/HeaderBar";
+import MusicPlayer from "@/app/components/MusicPlayer";
+import SongList from "@/app/components/SongList";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  fetchPlaylist,
+  fetchPlaylistSongs,
+  removeSongFromPlaylist,
+  reorderPlaylistSongs,
+  type Playlist,
+  type PlaylistSong,
+} from "@/lib/playlists";
+
+type Song = {
+  name: string;
+  url: string;
+  filePath: string;
+  shareToken: string;
+  isOwner?: boolean;
+};
+
+export default function PlaylistPage() {
+  const params = useParams();
+  const playlistId = params.playlistId as string;
+
+  const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioTitle, setAudioTitle] = useState<string | null>(null);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [playQueue, setPlayQueue] = useState<Song[]>([]);
+  const [playRequest, setPlayRequest] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [loadedPlaylist, loadedItems] = await Promise.all([
+          fetchPlaylist(playlistId),
+          fetchPlaylistSongs(playlistId),
+        ]);
+
+        if (!loadedPlaylist) {
+          setError("Playlist not found.");
+          return;
+        }
+
+        setPlaylist(loadedPlaylist);
+        setSongs(
+          loadedItems.map((song) => ({
+            ...song,
+            isOwner: false,
+          }))
+        );
+      } catch (loadError) {
+        console.error("Error loading playlist:", loadError);
+        setError("Could not load this playlist.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [playlistId]);
+
+  useEffect(() => {
+    const initSession = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user ?? null);
+    };
+
+    void initSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => setUser(session?.user ?? null)
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleSelectSong = (
+    url: string,
+    name: string,
+    filePath: string,
+    queue: Song[]
+  ) => {
+    setAudioUrl(url);
+    setAudioTitle(name);
+    setCurrentFilePath(filePath);
+    setPlayQueue(queue);
+  };
+
+  const handleSongEnded = () => {
+    const currentIndex = playQueue.findIndex(
+      (song) => song.filePath === currentFilePath
+    );
+    const nextSong = playQueue[currentIndex + 1];
+
+    if (!nextSong) return;
+
+    setAudioUrl(nextSong.url);
+    setAudioTitle(nextSong.name);
+    setCurrentFilePath(nextSong.filePath);
+    setPlayRequest((request) => request + 1);
+  };
+
+  const handleRemove = async (shareToken: string) => {
+    await removeSongFromPlaylist(playlistId, shareToken);
+    setSongs((current) =>
+      current.filter((song) => song.shareToken !== shareToken)
+    );
+  };
+
+  const handleReorder = async (orderedTokens: string[]) => {
+    const previousSongs = songs;
+    const byToken = new Map(
+      songs.map((song) => [song.shareToken, song])
+    );
+    const reordered = orderedTokens
+      .map((token) => byToken.get(token))
+      .filter((song): song is Song => song !== undefined);
+
+    setSongs(reordered);
+
+    try {
+      await reorderPlaylistSongs(playlistId, orderedTokens);
+    } catch (error) {
+      console.error("Could not reorder playlist:", error);
+      setSongs(previousSongs);
+      setError("Could not save the new song order.");
+    }
+  };
+
+  if (loading) {
+    return <p className="p-6">Loading playlist...</p>;
+  }
+
+  if (error || !playlist) {
+    return (
+      <p className="p-6 text-red-600">
+        {error ?? "Playlist not found."}
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${
+        audioUrl ? "pb-24" : ""
+      }`}
+    >
+      <HeaderBar
+        user={user}
+        onSignOut={async () => {
+          await supabase.auth.signOut();
+        }}
+      />
+
+      <main className="flex-1 flex flex-col items-center p-6">
+        <h1 className="w-full max-w-xl text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+          {playlist.name}
+        </h1>
+
+        <SongList
+          mode="playlist"
+          songs={songs}
+          userId={user?.id ?? ""}
+          refresh={async () => {
+            setSongs(
+              (await fetchPlaylistSongs(playlistId)).map((song) => ({
+                ...song,
+                isOwner: false,
+              }))
+            );
+          }}
+          onRemove={handleRemove}
+          onSelect={handleSelectSong}
+          onReorder={handleReorder}
+        />
+      </main>
+
+      {audioUrl && (
+        <MusicPlayer
+          src={audioUrl}
+          title={audioTitle ?? undefined}
+          onEnded={handleSongEnded}
+          playRequest={playRequest}
+          autoPlay
+        />
+      )}
+    </div>
+  );
+}

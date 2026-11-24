@@ -7,12 +7,15 @@ import SignInButton from "./SignInButton";
 
 type HeaderBarProps = {
   user: any | null;
-  onUpload?: () => void;
   onSignOut?: () => Promise<void> | void;
   onProfile?: () => Promise<void> | void;
 };
 
-export default function HeaderBar({ user, onUpload, onSignOut, onProfile }: HeaderBarProps) {
+export default function HeaderBar({
+  user,
+  onSignOut,
+  onProfile,
+}: HeaderBarProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
@@ -23,7 +26,8 @@ export default function HeaderBar({ user, onUpload, onSignOut, onProfile }: Head
       if (!open) return;
       const target = e.target as Node | null;
       if (!target) return;
-      if (avatarRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      if (avatarRef.current?.contains(target) || dropdownRef.current?.contains(target))
+        return;
       setOpen(false);
     }
     function handleEsc(e: KeyboardEvent) {
@@ -54,15 +58,6 @@ export default function HeaderBar({ user, onUpload, onSignOut, onProfile }: Head
       <div className="relative h-10">
         <div className="mx-auto max-w-3xl h-full" />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-          {/* Upload button only when signed in and onUpload provided */}
-          {user && onUpload && (
-            <button
-              onClick={onUpload}
-              className="inline-flex h-8 items-center justify-center rounded bg-zinc-950 px-3 text-sm font-semibold text-white hover:bg-zinc-800 transition mr-2"
-            >
-              Upload
-            </button>
-          )}
 
           {/* If signed in: avatar + dropdown, else SignInButton */}
           {user ? (
@@ -90,7 +85,7 @@ export default function HeaderBar({ user, onUpload, onSignOut, onProfile }: Head
                       onClick={handleProfile}
                       className="mt-4 inline-flex w-full justify-center rounded-2xl bg-zinc-800 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
                     >
-                      Profile
+                      Library
                     </button>
                     <button
                       onClick={handleSignOut}
