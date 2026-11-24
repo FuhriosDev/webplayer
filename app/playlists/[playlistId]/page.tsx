@@ -12,16 +12,10 @@ import {
   removeSongFromPlaylist,
   reorderPlaylistSongs,
   type Playlist,
-  type PlaylistSong,
 } from "@/lib/playlists";
-
-type Song = {
-  name: string;
-  url: string;
-  filePath: string;
-  shareToken: string;
-  isOwner?: boolean;
-};
+import type { Song } from "@/lib/song";
+import { useAuthSession } from "@/app/hooks/useAuthSession";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 export default function PlaylistPage() {
   const params = useParams();
@@ -29,7 +23,8 @@ export default function PlaylistPage() {
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
-  const [user, setUser] = useState<any | null>(null);
+  const session = useAuthSession();
+  const user = session?.user ?? null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +56,7 @@ export default function PlaylistPage() {
         );
       } catch (loadError) {
         console.error("Error loading playlist:", loadError);
-        setError("Could not load this playlist.");
+        setError(getErrorMessage(loadError, "Could not load this playlist."));
       } finally {
         setLoading(false);
       }
@@ -69,21 +64,6 @@ export default function PlaylistPage() {
 
     void load();
   }, [playlistId]);
-
-  useEffect(() => {
-    const initSession = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user ?? null);
-    };
-
-    void initSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => setUser(session?.user ?? null)
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   const handleSelectSong = (
     url: string,

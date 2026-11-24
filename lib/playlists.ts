@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import type { Song } from "./song";
 
 export type Playlist = {
   id: string;
@@ -6,12 +7,11 @@ export type Playlist = {
   created_at: string;
 };
 
-export type PlaylistSong = {
-  name: string;
-  url: string;
-  filePath: string;
-  shareToken: string;
+export type PlaylistSongStatus = Playlist & {
+  containsSong: boolean;
 };
+
+export type PlaylistSong = Song;
 
 type SharedSong = {
   display_name: string;
@@ -25,7 +25,7 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
   } = await supabase.auth.getUser();
 
   if (authError) throw authError;
-  if (!user) return [];
+  if (!user) throw new Error("Sign in to load your playlists.");
 
   const { data, error } = await supabase
     .from("playlists")
@@ -36,6 +36,30 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
   if (error) throw error;
 
   return data ?? [];
+}
+
+export async function fetchPlaylistsForSong(
+  shareToken: string
+): Promise<PlaylistSongStatus[]> {
+  const playlists = await fetchPlaylists();
+  if (playlists.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("playlist_items")
+    .select("playlist_id")
+    .eq("share_token", shareToken)
+    .in(
+      "playlist_id",
+      playlists.map((playlist) => playlist.id)
+    );
+
+  if (error) throw error;
+
+  const playlistIds = new Set((data ?? []).map((item) => item.playlist_id));
+  return playlists.map((playlist) => ({
+    ...playlist,
+    containsSong: playlistIds.has(playlist.id),
+  }));
 }
 
 export async function createPlaylist(rawName: string): Promise<Playlist> {
@@ -76,12 +100,14 @@ export async function fetchPlaylistSongs(
   if (error) throw error;
 
   const songs = await Promise.all(
-    (items ?? []).map(async (item): Promise<PlaylistSong | null> => {
+    (items ?? []).map(async (item): Promise<PlaylistSong> => {
       const response = await fetch(
         `/api/share/${encodeURIComponent(item.share_token)}`
       );
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        throw new Error(`Could not load playlist song (${response.status}).`);
+      }
 
       const shared: SharedSong = await response.json();
       const url = supabase.storage
@@ -97,7 +123,7 @@ export async function fetchPlaylistSongs(
     })
   );
 
-  return songs.filter((song): song is PlaylistSong => song !== null);
+  return songs;
 }
 
 export async function addSongToPlaylist(
@@ -122,6 +148,9 @@ export async function addSongToPlaylist(
     position: nextPosition,
   });
 
+  if (error?.code === "23505") {
+    throw new Error("This song is already in this playlist.");
+  }
   if (error) throw error;
 }
 

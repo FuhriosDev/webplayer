@@ -1,12 +1,5 @@
 import { supabase } from "./supabaseClient";
-
-type Song = {
-  name: string;
-  url: string;
-  filePath: string;
-  shareToken: string;
-  isOwner: boolean;
-};
+import type { Song } from "./song";
 
 type SharedSong = {
   display_name: string;
@@ -16,10 +9,8 @@ type SharedSong = {
 export async function fetchSongs(): Promise<Song[]> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (userError || !userData.user) {
-    console.error("User not authenticated");
-    return [];
-  }
+  if (userError) throw userError;
+  if (!userData.user) throw new Error("Sign in to load your songs.");
 
   const userId = userData.user.id;
 
@@ -30,8 +21,7 @@ export async function fetchSongs(): Promise<Song[]> {
     .order("created_at", { ascending: false });
 
   if (ownedError) {
-    console.error("Error fetching owned songs:", ownedError.message);
-    return [];
+    throw ownedError;
   }
 
   const ownedSongs: Song[] = (ownedRows ?? []).map((row) => ({
@@ -48,8 +38,7 @@ export async function fetchSongs(): Promise<Song[]> {
     .eq("user_id", userId);
 
   if (savedError) {
-    console.error("Error fetching saved songs:", savedError.message);
-    return ownedSongs;
+    throw savedError;
   }
 
   const ownedTokens = new Set(ownedSongs.map((song) => song.shareToken));
@@ -59,35 +48,27 @@ export async function fetchSongs(): Promise<Song[]> {
     .filter((token) => !ownedTokens.has(token));
 
   const savedSongs = await Promise.all(
-    savedTokens.map(async (token): Promise<Song | null> => {
-      try {
-        const response = await fetch(`/api/share/${encodeURIComponent(token)}`);
+    savedTokens.map(async (token): Promise<Song> => {
+      const response = await fetch(`/api/share/${encodeURIComponent(token)}`);
 
-        if (!response.ok) {
-          return null;
-        }
-
-        const shared: SharedSong = await response.json();
-        const publicUrl = supabase.storage
-          .from("songs")
-          .getPublicUrl(shared.file_path).data.publicUrl;
-
-        return {
-          name: shared.display_name,
-          url: publicUrl,
-          filePath: shared.file_path,
-          shareToken: token,
-          isOwner: false,
-        };
-      } catch (error) {
-        console.error("Error loading saved song:", error);
-        return null;
+      if (!response.ok) {
+        throw new Error(`Could not load saved song (${response.status}).`);
       }
+
+      const shared: SharedSong = await response.json();
+      const publicUrl = supabase.storage
+        .from("songs")
+        .getPublicUrl(shared.file_path).data.publicUrl;
+
+      return {
+        name: shared.display_name,
+        url: publicUrl,
+        filePath: shared.file_path,
+        shareToken: token,
+        isOwner: false,
+      };
     })
   );
 
-  return [
-    ...ownedSongs,
-    ...savedSongs.filter((song): song is Song => song !== null),
-  ];
+  return [...ownedSongs, ...savedSongs];
 }

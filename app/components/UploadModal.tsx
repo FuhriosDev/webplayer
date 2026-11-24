@@ -92,12 +92,6 @@ export default function UploadModal({
       if (uploadError) {
         setError("Upload failed: " + uploadError.message);
       } else {
-        // Get public URL (kept for display; not returned to parent)
-        const { data: publicUrlData } = supabase
-          .storage
-          .from("songs")
-          .getPublicUrl(filePath);
-
         // Save metadata with matching file_path
         const { error: metaError } = await supabase
           .from("songs_meta")

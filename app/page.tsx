@@ -1,116 +1,100 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import UploadModal from "./components/UploadModal";
 import MusicPlayer from "./components/MusicPlayer";
 import SongList from "./components/SongList";
-import AuthPanel from "./components/AuthPanel";
 import { fetchSongs } from "@/lib/fetchSongs";
-import SignInButton from "./components/SignInButton";
 import HeaderBar from "./components/HeaderBar";
 import PlaylistPanel from "./components/PlaylistPanel";
 import {
   fetchPlaylists,
   type Playlist,
 } from "@/lib/playlists";
-
-type Song = {
-  name: string;
-  url: string;
-  filePath: string;
-  shareToken: string;
-  isOwner?: boolean;
-};
+import type { Song } from "@/lib/song";
+import type { Session } from "@supabase/supabase-js";
+import { useAuthSession } from "@/app/hooks/useAuthSession";
+import { getErrorMessage } from "@/lib/errorMessage";
 
 type LibraryView = "songs" | "playlists";
 
 export default function Home() {
-  const [user, setUser] = useState<any | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioTitle, setAudioTitle] = useState<string | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [songsError, setSongsError] = useState<string | null>(null);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [playQueue, setPlayQueue] = useState<Song[]>([]);
   const [playRequest, setPlayRequest] = useState(0);
-  const [playlistRefreshKey, setPlaylistRefreshKey] = useState(0);
   const [libraryView, setLibraryView] = useState<LibraryView>("songs");
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [playlistsError, setPlaylistsError] = useState<string | null>(null);
+  const previousUserId = useRef<string | null>(null);
 
-  const avatarRef = useRef<HTMLButtonElement | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const handleSessionChange = useCallback((session: Session | null) => {
+    const nextUserId = session?.user.id ?? null;
+    if (previousUserId.current === nextUserId) return;
 
-  const refreshSongs = async () => {
-    const songs = await fetchSongs();
-    setSongs(songs);
-  };
-
-  const refreshPlaylists = async () => {
-    const result = await fetchPlaylists();
-    setPlaylists(result);
-  };
+    previousUserId.current = nextUserId;
+    setSongs([]);
+    setSongsError(null);
+    setPlaylists([]);
+    setPlaylistsError(null);
+    setAudioUrl(null);
+    setAudioTitle(null);
+    setCurrentFilePath(null);
+  }, []);
+  const session = useAuthSession(handleSessionChange);
+  const user = session?.user ?? null;
 
   useEffect(() => {
-    const initAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user ?? null);
+    if (!user) return;
+
+    let cancelled = false;
+    const loadSongs = async () => {
+      try {
+        const loadedSongs = await fetchSongs();
+        if (cancelled) return;
+        setSongs(loadedSongs);
+        setSongsError(null);
+      } catch (error) {
+        if (!cancelled) {
+          setSongsError(getErrorMessage(error, "Could not load songs."));
+        }
+      }
+    };
+    const loadPlaylists = async () => {
+      try {
+        const loadedPlaylists = await fetchPlaylists();
+        if (cancelled) return;
+        setPlaylists(loadedPlaylists);
+        setPlaylistsError(null);
+      } catch (error) {
+        if (!cancelled) {
+          setPlaylistsError(
+            getErrorMessage(error, "Could not load playlists.")
+          );
+        }
+      }
     };
 
-    initAuth();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
+    void loadSongs();
+    void loadPlaylists();
 
     return () => {
-      listener?.subscription.unsubscribe();
+      cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setSongs([]);
-      setPlaylists([]);
-      setAudioUrl(null);
-      setAudioTitle(null);
-      setCurrentFilePath(null);
-      setProfileOpen(false);
-      return;
-    }
-
-    void refreshSongs();
-    void refreshPlaylists();
   }, [user]);
 
-  // close profile dropdown when clicking outside or pressing Escape
-  useEffect(() => {
-    function handleDocClick(e: MouseEvent) {
-      if (!profileOpen) return;
-      const target = e.target as Node | null;
-      if (!target) return;
-      if (
-        avatarRef.current?.contains(target) ||
-        dropdownRef.current?.contains(target)
-      ) {
-        return;
-      }
-      setProfileOpen(false);
+  const refreshSongs = async () => {
+    try {
+      setSongs(await fetchSongs());
+      setSongsError(null);
+    } catch (error) {
+      setSongsError(getErrorMessage(error, "Could not load songs."));
     }
-
-    function handleEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setProfileOpen(false);
-    }
-
-    document.addEventListener("click", handleDocClick);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("click", handleDocClick);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [profileOpen]);
+  };
 
   useEffect(() => {
     if (!showModal) return;
@@ -135,7 +119,6 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    setProfileOpen(false);
   };
 
   const handleSongEnded = () => {
@@ -209,14 +192,16 @@ export default function Home() {
               </div>
 
               <div hidden={libraryView !== "songs"}>
+                {songsError && (
+                  <p role="alert" className="mt-3 text-sm text-red-600">
+                    {songsError}
+                  </p>
+                )}
                 <SongList
                   songs={songs}
                   userId={user.id}
                   refresh={refreshSongs}
                   onUpload={() => setShowModal(true)}
-                  onPlaylistChange={() =>
-                    setPlaylistRefreshKey((key) => key + 1)
-                  }
                   onSelect={(url, name, filePath, queue) =>
                     handleSelectSong(url, name, filePath, queue)
                   }
@@ -235,8 +220,12 @@ export default function Home() {
               </div>
 
               <div hidden={libraryView !== "playlists"}>
+                {playlistsError && (
+                  <p role="alert" className="mt-3 text-sm text-red-600">
+                    {playlistsError}
+                  </p>
+                )}
                 <PlaylistPanel
-                  userId={user.id}
                   playlists={playlists}
                   onPlaylistsChange={setPlaylists}
                 />

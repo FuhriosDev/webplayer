@@ -1,32 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuthSession } from "@/app/hooks/useAuthSession";
 
 export default function AuthPanel() {
-  const [session, setSession] = useState<any | null>(null);
+  const session = useAuthSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session ?? null);
-    };
-
-    loadSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session ?? null)
-    );
-
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
-  }, []);
 
   const signIn = async () => {
     setLoading(true);
@@ -72,7 +56,6 @@ export default function AuthPanel() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setSession(null);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {

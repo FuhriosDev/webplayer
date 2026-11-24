@@ -1,13 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import AuthPanel from "./AuthPanel";
 
 export default function SignInButton() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   const modal = (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-16 p-4">
@@ -28,7 +25,7 @@ export default function SignInButton() {
         Sign in
       </button>
 
-      {mounted && open && createPortal(modal, document.body)}
+      {open && createPortal(modal, document.body)}
     </>
   );
 }

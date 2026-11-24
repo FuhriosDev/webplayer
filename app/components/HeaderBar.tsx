@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import SignInButton from "./SignInButton";
+import type { User } from "@supabase/supabase-js";
 
 type HeaderBarProps = {
-  user: any | null;
+  user: User | null;
   onSignOut?: () => Promise<void> | void;
   onProfile?: () => Promise<void> | void;
 };

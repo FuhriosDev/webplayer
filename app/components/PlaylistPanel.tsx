@@ -10,7 +10,6 @@ import {
 } from "@/lib/playlists";
 
 type PlaylistPanelProps = {
-  userId: string;
   playlists: Playlist[];
   onPlaylistsChange: (playlists: Playlist[]) => void;
 };
