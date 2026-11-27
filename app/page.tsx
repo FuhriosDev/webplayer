@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import UploadModal from "./components/UploadModal";
-import MusicPlayer from "./components/MusicPlayer";
 import SongList from "./components/SongList";
 import { fetchSongs } from "@/lib/fetchSongs";
 import HeaderBar from "./components/HeaderBar";
@@ -13,16 +12,13 @@ import type { Session } from "@supabase/supabase-js";
 import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { useLibraryState } from "@/app/providers/LibraryStateProvider";
+import { usePlayback } from "@/app/providers/PlaybackProvider";
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioTitle, setAudioTitle] = useState<string | null>(null);
   const [songsError, setSongsError] = useState<string | null>(null);
-  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
-  const [playQueue, setPlayQueue] = useState<Song[]>([]);
-  const [playRequest, setPlayRequest] = useState(0);
   const [playlistsError, setPlaylistsError] = useState<string | null>(null);
+  const playback = usePlayback();
   const library = useLibraryState();
   const {
     songsLoaded,
@@ -40,9 +36,6 @@ export default function Home() {
 
     setSongsError(null);
     setPlaylistsError(null);
-    setAudioUrl(null);
-    setAudioTitle(null);
-    setCurrentFilePath(null);
   }, [syncUser]);
   const session = useAuthSession(handleSessionChange);
   const user = session?.user ?? null;
@@ -119,38 +112,15 @@ export default function Home() {
     };
   }, [showModal]);
 
-  const handleSelectSong = (
-    url: string,
-    name: string,
-    filePath: string,
-    queue: Song[]
-  ) => {
-    setAudioUrl(url);
-    setAudioTitle(name);
-    setCurrentFilePath(filePath);
-    setPlayQueue(queue);
-  };
+  const handleSelectSong = (song: Song, queue: Song[]) =>
+    playback.playSong(song, queue);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
 
-  const handleSongEnded = () => {
-    const currentIndex = playQueue.findIndex(
-      (song) => song.filePath === currentFilePath
-    );
-    const nextSong = playQueue[currentIndex + 1];
-
-    if (!nextSong) return;
-
-    setAudioUrl(nextSong.url);
-    setAudioTitle(nextSong.name);
-    setCurrentFilePath(nextSong.filePath);
-    setPlayRequest((request) => request + 1);
-  };
-
   return (
-    <div className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${audioUrl ? "pb-24" : ""}`}>
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black">
         <HeaderBar
           user={user}
           onSignOut={handleSignOut}
@@ -216,17 +186,13 @@ export default function Home() {
                   userId={user.id}
                   refresh={refreshSongs}
                   onUpload={() => setShowModal(true)}
-                  onSelect={(url, name, filePath, queue) =>
-                    handleSelectSong(url, name, filePath, queue)
-                  }
+                  onSelect={handleSelectSong}
                   onDelete={(deletedFilePath) => {
                     if (
                       deletedFilePath &&
-                      deletedFilePath === currentFilePath
+                      deletedFilePath === playback.currentSong?.filePath
                     ) {
-                      setAudioUrl(null);
-                      setAudioTitle(null);
-                      setCurrentFilePath(null);
+                      playback.stopPlayback();
                     }
                     refreshSongs();
                   }}
@@ -250,15 +216,6 @@ export default function Home() {
         )}
       </main>
 
-      {audioUrl && (
-        <MusicPlayer
-          src={audioUrl}
-          title={audioTitle ?? undefined}
-          onEnded={handleSongEnded}
-          playRequest={playRequest}
-          autoPlay
-        />
-      )}
     </div>
   );
 }

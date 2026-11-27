@@ -3,10 +3,11 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import MusicPlayer from "@/app/components/MusicPlayer";
 import HeaderBar from "@/app/components/HeaderBar";
 import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
+import type { Song } from "@/lib/song";
+import { usePlayback } from "@/app/providers/PlaybackProvider";
 
 type SavedSongStatus = {
   key: string;
@@ -22,12 +23,13 @@ export default function SharePage() {
   const params = useParams();
   const shareToken = params.shareToken as string;
 
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [songName, setSongName] = useState<string>("Song");
+  const [sharedSong, setSharedSong] = useState<Song | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const session = useAuthSession();
   const user = session?.user ?? null;
+  const playback = usePlayback();
   const [saving, setSaving] = useState(false);
   const [savedSongStatus, setSavedSongStatus] =
     useState<SavedSongStatus | null>(null);
@@ -65,8 +67,14 @@ export default function SharePage() {
           .from("songs")
           .getPublicUrl(song.file_path);
 
-        setPublicUrl(data.publicUrl);
-        setSongName(song.display_name || "Song");
+        const loadedSong = {
+          name: song.display_name || "Song",
+          url: data.publicUrl,
+          filePath: song.file_path,
+          shareToken,
+        };
+        setSharedSong(loadedSong);
+        setSongName(loadedSong.name);
       } catch (err) {
         console.error("Error loading song:", err);
         setError("Song not found or cannot be accessed.");
@@ -210,7 +218,15 @@ export default function SharePage() {
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-6">
             {songName}
           </h1>
-          {publicUrl && <MusicPlayer src={publicUrl} title={songName} />}
+          {sharedSong && (
+            <button
+              type="button"
+              onClick={() => playback.playSong(sharedSong, [sharedSong])}
+              className="rounded bg-zinc-800 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+            >
+              Play song
+            </button>
+          )}
           {user && !isOwner && (
   <button
     type="button"

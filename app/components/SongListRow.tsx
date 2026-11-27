@@ -18,12 +18,7 @@ type SongListRowProps = {
   queue: Song[];
   mode: "library" | "playlist";
   reorderable: boolean;
-  onSelect: (
-    url: string,
-    name: string,
-    filePath: string,
-    queue: Song[]
-  ) => void;
+  onSelect: (song: Song, queue: Song[]) => void;
   onEdit: (filePath: string, newName: string) => Promise<void>;
   onDelete: (filePath: string) => void;
   onUnsave: (shareToken: string) => void;
@@ -260,9 +255,7 @@ export default function SongListRow({
           <button
             type="button"
             className="flex-1 cursor-pointer text-left text-zinc-800 hover:underline dark:text-zinc-100"
-            onClick={() =>
-              onSelect(song.url, song.name, song.filePath, queue)
-            }
+            onClick={() => onSelect(song, queue)}
           >
             {song.name}
           </button>

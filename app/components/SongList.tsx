@@ -26,12 +26,7 @@ type SongListProps = {
   songs: Song[];
   userId: string;
   refresh: () => Promise<void> | void;
-  onSelect: (
-    url: string,
-    name: string,
-    filePath: string,
-    queue: Song[]
-  ) => void;
+  onSelect: (song: Song, queue: Song[]) => void;
   onDelete?: (filePath: string) => void;
   onUpload?: () => void;
   mode?: "library" | "playlist";

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import HeaderBar from "@/app/components/HeaderBar";
-import MusicPlayer from "@/app/components/MusicPlayer";
 import SongList from "@/app/components/SongList";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -25,11 +24,13 @@ import {
 import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { useLibraryState } from "@/app/providers/LibraryStateProvider";
+import { usePlayback } from "@/app/providers/PlaybackProvider";
 
 export default function PlaylistPage() {
   const params = useParams<{ playlistId: string }>();
   const shareToken = params.playlistId;
   const router = useRouter();
+  const playback = usePlayback();
   const {
     setLibraryView,
     setPlaylists,
@@ -44,11 +45,6 @@ export default function PlaylistPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioTitle, setAudioTitle] = useState<string | null>(null);
-  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
-  const [playQueue, setPlayQueue] = useState<Song[]>([]);
-  const [playRequest, setPlayRequest] = useState(0);
   const [saveStatus, setSaveStatus] = useState<{
     key: string;
     isOwner: boolean;
@@ -189,31 +185,8 @@ export default function PlaylistPage() {
     };
   }, [currentSaveStatus, playlist, songStatusKey, songTokens, userId]);
 
-  const handleSelectSong = (
-    url: string,
-    name: string,
-    filePath: string,
-    queue: Song[]
-  ) => {
-    setAudioUrl(url);
-    setAudioTitle(name);
-    setCurrentFilePath(filePath);
-    setPlayQueue(queue);
-  };
-
-  const handleSongEnded = () => {
-    const currentIndex = playQueue.findIndex(
-      (song) => song.filePath === currentFilePath
-    );
-    const nextSong = playQueue[currentIndex + 1];
-
-    if (!nextSong) return;
-
-    setAudioUrl(nextSong.url);
-    setAudioTitle(nextSong.name);
-    setCurrentFilePath(nextSong.filePath);
-    setPlayRequest((request) => request + 1);
-  };
+  const handleSelectSong = (song: Song, queue: Song[]) =>
+    playback.playSong(song, queue);
 
   const handleRemove = async (shareToken: string) => {
     if (!playlist) return;
@@ -335,9 +308,7 @@ export default function PlaylistPage() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-zinc-50 dark:bg-black ${
-        audioUrl ? "pb-24" : ""
-      }`}
+      className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black"
     >
       <HeaderBar
         user={user}
@@ -414,15 +385,6 @@ export default function PlaylistPage() {
         )}
       </main>
 
-      {audioUrl && (
-        <MusicPlayer
-          src={audioUrl}
-          title={audioTitle ?? undefined}
-          onEnded={handleSongEnded}
-          playRequest={playRequest}
-          autoPlay
-        />
-      )}
     </div>
   );
 }
