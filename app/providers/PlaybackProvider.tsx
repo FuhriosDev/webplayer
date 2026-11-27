@@ -169,7 +169,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
 
   return (
     <PlaybackContext.Provider value={value}>
-      <div className={currentSong ? "pb-32 sm:pb-24" : ""}>{children}</div>
+      <div data-player-active={currentSong ? "true" : undefined}>{children}</div>
       {currentSong && (
         <MusicPlayer
           src={currentSong.url}

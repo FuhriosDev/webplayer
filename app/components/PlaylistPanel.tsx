@@ -14,6 +14,7 @@ import { getErrorMessage } from "@/lib/errorMessage";
 import ConfirmationDialog from "./ConfirmationDialog";
 import { useTransientNotice } from "@/app/hooks/useTransientNotice";
 import TransientNotice from "./TransientNotice";
+import OverflowMenu from "./OverflowMenu";
 
 type PlaylistFilter = "all" | "created" | "saved";
 type PendingPlaylistAction =
@@ -31,26 +32,6 @@ type PlaylistPanelProps = {
   playlists: Playlist[];
   onPlaylistsChange: (playlists: Playlist[]) => void;
 };
-
-function TrashIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-    >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
 
 export default function PlaylistPanel({
   userId,
@@ -201,19 +182,26 @@ export default function PlaylistPanel({
   return (
     <>
       {notice && <TransientNotice message={notice} />}
-      <div className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-center gap-2 px-6 pb-4 pt-6">
-          <div className="flex flex-1 gap-2">
+      <section
+        aria-label="Playlists"
+        className="mt-6 w-full overflow-visible rounded-3xl border border-zinc-200/80 bg-white shadow-sm shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none"
+      >
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 pb-4 pt-4 dark:border-zinc-800 sm:px-6 sm:pt-5">
+          <div
+            className="flex flex-1 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+            role="group"
+            aria-label="Filter playlists"
+          >
             {filters.map((filterOption) => (
               <button
                 key={filterOption.id}
                 type="button"
                 onClick={() => setFilter(filterOption.id)}
                 aria-pressed={filter === filterOption.id}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                   filter === filterOption.id
-                    ? "bg-blue-600 text-white shadow-md hover:bg-blue-700"
-                    : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                    ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
                 {filterOption.label}
@@ -225,9 +213,20 @@ export default function PlaylistPanel({
             onClick={() => setShowCreateModal(true)}
             aria-label="Create playlist"
             title="Create playlist"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-950 text-xl text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
           >
-            +
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span className="hidden sm:inline">New playlist</span>
           </button>
         </div>
 
@@ -248,14 +247,14 @@ export default function PlaylistPanel({
             editingPlaylistId === playlist.id ? (
               <li
                 key={playlist.id}
-                className="flex items-center border-b border-zinc-100 px-6 py-3 last:border-b-0 dark:border-zinc-800"
+                className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0 dark:border-zinc-800 sm:px-6"
               >
                 <input
                   value={editedPlaylistName}
                   onChange={(event) =>
                     setEditedPlaylistName(event.target.value)
                   }
-                  className="mr-4 h-9 flex-1 rounded border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                   autoFocus
                 />
 
@@ -265,7 +264,7 @@ export default function PlaylistPanel({
                     onClick={() =>
                       void handleRenamePlaylist(playlist.id)
                     }
-                    className="inline-flex h-9 items-center justify-center rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700"
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                   >
                     Save
                   </button>
@@ -273,7 +272,7 @@ export default function PlaylistPanel({
                   <button
                     type="button"
                     onClick={() => setEditingPlaylistId(null)}
-                    className="inline-flex h-9 items-center justify-center rounded bg-zinc-300 px-3 text-sm text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-100 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
                   >
                     Cancel
                   </button>
@@ -282,7 +281,7 @@ export default function PlaylistPanel({
             ) : (
               <li
                 key={playlist.id}
-                className="flex items-center justify-between border-b border-zinc-100 px-6 py-3 last:border-b-0 dark:border-zinc-800"
+                className="group flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-zinc-800 dark:hover:bg-zinc-900/60 sm:px-6"
               >
                 <button
                   type="button"
@@ -291,92 +290,43 @@ export default function PlaylistPanel({
                       `/playlists/${playlist.shareToken ?? playlist.id}`
                     )
                   }
-                  className="flex-1 cursor-pointer text-left text-zinc-800 hover:underline dark:text-zinc-100"
+                  className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
                 >
                   {playlist.name}
                 </button>
-                <div className="flex gap-2">
-                  {!playlist.isSaved && (
-                    <button
-                      type="button"
-                      aria-label={`Edit ${playlist.name}`}
-                      onClick={() => {
-                        setEditingPlaylistId(playlist.id);
-                        setEditedPlaylistName(playlist.name);
-                      }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-5 w-5"
-                      >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    aria-label={`Share ${playlist.name}`}
-                    onClick={() => void handleSharePlaylist(playlist)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-green-600 text-white hover:bg-green-700"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
-                    >
-                      <circle cx="18" cy="5" r="3" />
-                      <circle cx="6" cy="12" r="3" />
-                      <circle cx="18" cy="19" r="3" />
-                      <path d="M8.59 13.51l6.83 3.99" />
-                      <path d="M8.59 10.49l6.83-3.99" />
-                    </svg>
-                  </button>
-
-                  {playlist.isSaved ? (
-                    <button
-                      type="button"
-                      aria-label={`Remove saved playlist ${playlist.name}`}
-                      title="Remove saved playlist"
-                      onClick={() => {
+                <OverflowMenu
+                  label={`More options for ${playlist.name}`}
+                  items={[
+                    ...(!playlist.isSaved
+                      ? [
+                          {
+                            label: "Rename playlist",
+                            onSelect: () => {
+                              setEditingPlaylistId(playlist.id);
+                              setEditedPlaylistName(playlist.name);
+                            },
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "Share playlist",
+                      onSelect: () => void handleSharePlaylist(playlist),
+                    },
+                    {
+                      label: playlist.isSaved
+                        ? "Remove saved playlist"
+                        : "Delete playlist",
+                      tone: "danger",
+                      onSelect: () => {
                         setConfirmationError(null);
                         setPendingPlaylistAction({
-                          type: "unsave",
+                          type: playlist.isSaved ? "unsave" : "delete",
                           playlistId: playlist.id,
                         });
-                      }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-                    >
-                      <TrashIcon />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label={`Delete ${playlist.name}`}
-                      onClick={() => {
-                        setConfirmationError(null);
-                        setPendingPlaylistAction({
-                          type: "delete",
-                          playlistId: playlist.id,
-                        });
-                      }}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-                    >
-                      <TrashIcon />
-                    </button>
-                  )}
-                </div>
+                      },
+                    },
+                  ]}
+                />
               </li>
             )
           )}
@@ -388,10 +338,10 @@ export default function PlaylistPanel({
               ? "No created playlists yet."
               : filter === "saved"
                 ? "No saved playlists yet."
-                : "No playlists yet."}
+                : "No playlists yet. Create one to start organizing your music."}
           </p>
         )}
-      </div>
+      </section>
 
       {pendingPlaylistAction && (
         <ConfirmationDialog
@@ -421,15 +371,15 @@ export default function PlaylistPanel({
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[80vh] w-full max-w-xl overflow-auto rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-            <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:p-8">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
               Create playlist
             </h1>
 
             <form
               onSubmit={submitCreate}
-              className="mt-8 flex flex-col gap-4"
+              className="mt-6 flex flex-col gap-4"
             >
               <input
                 value={newPlaylistName}
@@ -441,14 +391,14 @@ export default function PlaylistPanel({
                 required
                 maxLength={100}
                 autoFocus
-                className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-xl border border-zinc-200 bg-white p-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
               />
 
-              <div className="flex justify-between">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                 <button
                   type="submit"
                   disabled={creating}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-950 px-5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                 >
                   {creating ? "Creating..." : "Create playlist"}
                 </button>
@@ -456,7 +406,7 @@ export default function PlaylistPanel({
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
                 >
                   Close
                 </button>

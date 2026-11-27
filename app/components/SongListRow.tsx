@@ -12,6 +12,7 @@ import { getErrorMessage } from "@/lib/errorMessage";
 import { SortableSongRow } from "./SortableSongRow";
 import { useTransientNotice } from "@/app/hooks/useTransientNotice";
 import TransientNotice from "./TransientNotice";
+import OverflowMenu, { type OverflowMenuItem } from "./OverflowMenu";
 
 type SongListRowProps = {
   song: Song;
@@ -30,46 +31,6 @@ type SongListRowProps = {
     isSaved: boolean
   ) => Promise<void>;
 };
-
-function DeleteIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-    >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-    >
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <path d="M8.59 13.51l6.83 3.99" />
-      <path d="M8.59 10.49l6.83-3.99" />
-    </svg>
-  );
-}
 
 export default function SongListRow({
   song,
@@ -91,6 +52,9 @@ export default function SongListRow({
   const [playlistOptions, setPlaylistOptions] =
     useState<PlaylistSongStatus[]>([]);
   const [loadingPlaylistOptions, setLoadingPlaylistOptions] = useState(false);
+  const [playlistOptionsError, setPlaylistOptionsError] = useState<
+    string | null
+  >(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
   const [savingSong, setSavingSong] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -180,11 +144,14 @@ export default function SongListRow({
 
     setPlaylistMenuOpen(true);
     setActionError(null);
+    setPlaylistOptionsError(null);
     setLoadingPlaylistOptions(true);
     try {
       setPlaylistOptions(await fetchPlaylistsForSong(song.shareToken));
     } catch (error) {
-      setActionError(getErrorMessage(error, "Could not load playlists."));
+      setPlaylistOptionsError(
+        getErrorMessage(error, "Could not load playlists.")
+      );
     } finally {
       setLoadingPlaylistOptions(false);
     }
@@ -219,6 +186,59 @@ export default function SongListRow({
     }
   };
 
+  const songMenuItems: OverflowMenuItem[] = [];
+  if (mode === "library") {
+    songMenuItems.push({
+      label: "Add to playlist",
+      onSelect: () => void handleOpenPlaylistMenu(),
+    });
+  }
+  songMenuItems.push({
+    label: "Share song",
+    onSelect: () => void handleShare(),
+  });
+  if (mode === "library" && song.isOwner) {
+    songMenuItems.push({
+      label: "Rename song",
+      onSelect: () => {
+        setEditing(true);
+        setNewName(song.name);
+      },
+    });
+  }
+  if (mode === "library" && song.isOwner) {
+    songMenuItems.push({
+      label: "Delete song",
+      tone: "danger",
+      onSelect: () => onDelete(song.filePath),
+    });
+  } else if (mode === "library") {
+    songMenuItems.push({
+      label: "Remove from saved songs",
+      tone: "danger",
+      onSelect: () => onUnsave(song.shareToken),
+    });
+  } else if (mode === "playlist" && canSaveSong) {
+    songMenuItems.push({
+      label: savingSong
+        ? isSaved
+          ? "Removing from saved songs..."
+          : "Saving song..."
+        : isSaved
+          ? "Remove from saved songs"
+          : "Save song",
+      tone: isSaved ? "danger" : "default",
+      disabled: savingSong,
+      onSelect: () => void handleSaveSong(),
+    });
+  } else if (onRemove) {
+    songMenuItems.push({
+      label: "Remove from playlist",
+      tone: "danger",
+      onSelect: () => void handleRemove(),
+    });
+  }
+
   return (
     <SortableSongRow
       id={song.shareToken}
@@ -226,191 +246,133 @@ export default function SongListRow({
     >
       {notice && <TransientNotice message={notice} />}
       {editing ? (
-        <>
+        <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3">
           <input
             value={newName}
             onChange={(event) => setNewName(event.target.value)}
-            placeholder="New name"
-            className="mr-4 h-9 flex-1 rounded border border-zinc-300 px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            aria-label={`Rename ${song.name}`}
+            autoFocus
+            className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <button
               type="button"
               onClick={() => void handleEdit()}
-              className="inline-flex h-9 items-center justify-center rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
             >
               Save
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="inline-flex h-9 items-center justify-center rounded bg-zinc-300 px-3 text-sm text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-100 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
             >
               Cancel
             </button>
           </div>
-        </>
+        </div>
       ) : (
         <>
           <button
             type="button"
-            className="flex-1 cursor-pointer text-left text-zinc-800 hover:underline dark:text-zinc-100"
+            className="min-w-0 flex-1 cursor-pointer truncate py-1 text-left text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
             onClick={() => onSelect(song, queue)}
           >
             {song.name}
           </button>
-          <div className="flex gap-2">
-            {mode === "library" && song.isOwner && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(true);
-                  setNewName(song.name);
-                }}
-                aria-label="Edit song"
-                className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void handleShare()}
-              aria-label="Share song"
-              className="inline-flex h-9 w-9 items-center justify-center rounded bg-green-600 text-white hover:bg-green-700"
-            >
-              <ShareIcon />
-            </button>
-            {mode === "playlist" ? (
-              onRemove ? (
-                <button
-                  type="button"
-                  onClick={() => void handleRemove()}
-                  aria-label={`Remove ${song.name} from playlist`}
-                  className="inline-flex h-9 items-center justify-center rounded bg-red-600 px-3 text-sm text-white hover:bg-red-700"
-                >
-                  Remove
-                </button>
-              ) : (
-                canSaveSong && (
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveSong()}
-                    disabled={savingSong}
-                    aria-label={
-                      isSaved
-                        ? `Unsave ${song.name}`
-                        : `Save ${song.name}`
-                    }
-                    className="inline-flex h-9 w-20 shrink-0 items-center justify-center rounded bg-zinc-800 px-0 text-sm text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {savingSong
-                      ? isSaved
-                        ? "Removing..."
-                        : "Saving..."
-                      : isSaved
-                        ? "Unsave"
-                        : "Save"}
-                  </button>
-                )
-              )
-            ) : song.isOwner ? (
-              <button
-                type="button"
-                onClick={() => onDelete(song.filePath)}
-                aria-label="Delete song"
-                className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-              >
-                <DeleteIcon />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onUnsave(song.shareToken)}
-                aria-label={`Remove ${song.name} from saved songs`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-              >
-                <DeleteIcon />
-              </button>
-            )}
-            {mode === "library" && (
-              <div ref={playlistPickerRef} className="relative">
-                <button
-                  ref={playlistTriggerRef}
-                  type="button"
-                  title="Add to playlist"
+          <div className="flex items-center gap-1">
+            <div ref={playlistPickerRef} className="relative">
+              <OverflowMenu
+                label={`More options for ${song.name}`}
+                items={songMenuItems}
+                triggerRef={playlistTriggerRef}
+              />
+              {playlistMenuOpen && (
+                <div
+                  role="dialog"
                   aria-label={`Add ${song.name} to a playlist`}
-                  aria-expanded={playlistMenuOpen}
-                  onClick={() => void handleOpenPlaylistMenu()}
-                  className="inline-flex h-9 items-center justify-center rounded bg-zinc-800 px-3 text-sm text-white"
+                  aria-busy={addingToPlaylist}
+                  className="absolute right-0 top-full z-[60] mt-2 w-72 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
                 >
-                  Add to playlist
-                </button>
-
-                {playlistMenuOpen && (
-                  <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-                    {loadingPlaylistOptions ? (
-                      <p className="text-sm">Loading playlists...</p>
-                    ) : (
-                      <ul
-                        aria-label={`Playlists for ${song.name}`}
-                        className="max-h-60 overflow-y-auto"
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      Add to playlist
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPlaylistMenuOpen(false)}
+                      aria-label="Close playlist menu"
+                      className="rounded-lg p-1 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        className="h-4 w-4"
+                        aria-hidden="true"
                       >
-                        {playlistOptions.map((playlist) => (
-                          <li key={playlist.id}>
-                            <div className="flex items-center justify-between gap-3 py-1">
-                              <span className="min-w-0 flex-1 truncate text-sm">
-                                {playlist.name}
-                              </span>
-                              <button
-                                type="button"
-                                disabled={addingToPlaylist}
-                                onClick={() =>
-                                  void handleTogglePlaylist(
-                                    playlist.id,
-                                    playlist.containsSong
-                                  )
-                                }
-                                aria-label={
-                                  playlist.containsSong
-                                    ? `Remove ${song.name} from ${playlist.name}`
-                                    : `Add ${song.name} to ${playlist.name}`
-                                }
-                                className="shrink-0 rounded px-2 py-1 text-xs font-medium hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
-                              >
-                                {playlist.containsSong
-                                  ? "In playlist · Remove"
-                                  : "Not in playlist · Add"}
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    {!loadingPlaylistOptions && playlistOptions.length === 0 && (
-                      <p className="mt-2 text-sm text-zinc-500">
-                        Create a playlist first.
-                      </p>
-                    )}
-                    {addingToPlaylist && (
-                      <p className="mt-2 text-sm">Adding song...</p>
-                    )}
+                        <path d="m6 6 12 12M18 6 6 18" />
+                      </svg>
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
+                  {loadingPlaylistOptions ? (
+                    <div className="flex items-center gap-2 px-3 py-5 text-sm text-zinc-500 dark:text-zinc-400">
+                      <span
+                        aria-hidden="true"
+                        className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-blue-500 dark:border-zinc-700 dark:border-t-blue-400"
+                      />
+                      Loading playlists…
+                    </div>
+                  ) : playlistOptionsError ? (
+                    <p
+                      role="alert"
+                      className="px-3 py-5 text-sm text-red-600 dark:text-red-400"
+                    >
+                      {playlistOptionsError}
+                    </p>
+                  ) : playlistOptions.length > 0 ? (
+                    <ul
+                      aria-label={`Playlists for ${song.name}`}
+                      className="max-h-60 overflow-y-auto"
+                    >
+                      {playlistOptions.map((playlist) => (
+                        <li key={playlist.id}>
+                          <button
+                            type="button"
+                            disabled={addingToPlaylist}
+                            onClick={() =>
+                              void handleTogglePlaylist(
+                                playlist.id,
+                                playlist.containsSong
+                              )
+                            }
+                            aria-label={
+                              playlist.containsSong
+                                ? `Remove ${song.name} from ${playlist.name}`
+                                : `Add ${song.name} to ${playlist.name}`
+                            }
+                            className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-zinc-800"
+                          >
+                            <span className="min-w-0 flex-1 truncate font-medium text-zinc-700 dark:text-zinc-200">
+                              {playlist.name}
+                            </span>
+                            <span className="shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                              {playlist.containsSong ? "Added · Remove" : "Add"}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="px-3 py-5 text-sm text-zinc-500 dark:text-zinc-400">
+                      Create a playlist first to organize this song.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

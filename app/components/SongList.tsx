@@ -145,21 +145,28 @@ export default function SongList({
   };
 
   return (
-    <div className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
+    <section
+      aria-label={mode === "library" ? "Songs" : "Playlist songs"}
+      className="mt-6 w-full overflow-visible rounded-3xl border border-zinc-200/80 bg-white shadow-sm shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none"
+    >
       {mode === "library" && (
-        <div className="px-6 pb-4 pt-6">
+        <div className="border-b border-zinc-100 px-4 pb-4 pt-4 dark:border-zinc-800 sm:px-6 sm:pt-5">
           <div className="flex items-center gap-2">
-            <div className="flex flex-1 gap-2">
+            <div
+              className="flex flex-1 gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+              role="group"
+              aria-label="Filter songs"
+            >
               {filters.map((filterOption) => (
                 <button
                   key={filterOption.id}
                   type="button"
                   onClick={() => setFilter(filterOption.id)}
                   aria-pressed={filter === filterOption.id}
-                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                     filter === filterOption.id
-                      ? "bg-blue-600 text-white shadow-md hover:bg-blue-700"
-                      : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
                   {filterOption.label}
@@ -172,9 +179,20 @@ export default function SongList({
                 onClick={onUpload}
                 aria-label="Upload audio"
                 title="Upload audio"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xl text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
               >
-                +
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span className="hidden sm:inline">Upload</span>
               </button>
             )}
           </div>
@@ -219,9 +237,46 @@ export default function SongList({
       </DndContext>
 
       {visibleSongs.length === 0 && mode === "playlist" && (
-        <p className="px-6 py-4 text-sm text-zinc-500">
+        <p className="px-6 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
           This playlist is empty.
         </p>
+      )}
+      {visibleSongs.length === 0 && mode === "library" && (
+        <div className="px-6 py-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6"
+              aria-hidden="true"
+            >
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+          </div>
+          <p className="mt-4 font-medium text-zinc-900 dark:text-zinc-100">
+            {filter === "all" ? "Your library is ready" : `No ${filter} yet`}
+          </p>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {filter === "all"
+              ? "Upload a song to start building your collection."
+              : "Try another filter or add more songs to your library."}
+          </p>
+          {filter === "all" && onUpload && (
+            <button
+              type="button"
+              onClick={onUpload}
+              className="mt-5 inline-flex h-10 items-center rounded-xl bg-zinc-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+            >
+              Upload a song
+            </button>
+          )}
+        </div>
       )}
       {pendingAction && (
         <ConfirmationDialog
@@ -241,6 +296,6 @@ export default function SongList({
           }}
         />
       )}
-    </div>
+    </section>
   );
 }

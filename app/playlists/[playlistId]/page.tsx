@@ -42,7 +42,8 @@ export default function PlaylistPage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const session = useAuthSession();
   const user = session?.user ?? null;
-  const [loading, setLoading] = useState(true);
+  const [loadedShareToken, setLoadedShareToken] = useState<string | null>(null);
+  const loading = loadedShareToken !== shareToken;
   const [error, setError] = useState<string | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<{
@@ -95,16 +96,23 @@ export default function PlaylistPage() {
       : null;
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         const loadedPlaylist = await fetchPlaylist(shareToken);
+        if (cancelled) return;
 
         if (!loadedPlaylist) {
+          setPlaylist(null);
+          setSongs([]);
           setError("Playlist not found.");
           return;
         }
 
         const loadedItems = await fetchPlaylistSongs(loadedPlaylist.id);
+        if (cancelled) return;
+        setError(null);
         setPlaylist(loadedPlaylist);
         setSongs(
           loadedItems.map((song) => ({
@@ -113,14 +121,18 @@ export default function PlaylistPage() {
           }))
         );
       } catch (loadError) {
+        if (cancelled) return;
         console.error("Error loading playlist:", loadError);
         setError(getErrorMessage(loadError, "Could not load this playlist."));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoadedShareToken(shareToken);
       }
     };
 
     void load();
+    return () => {
+      cancelled = true;
+    };
   }, [shareToken]);
 
   useEffect(() => {
@@ -294,22 +306,8 @@ export default function PlaylistPage() {
     }
   };
 
-  if (loading) {
-    return <p className="p-6">Loading playlist...</p>;
-  }
-
-  if (error || !playlist) {
-    return (
-      <p className="p-6 text-red-600">
-        {error ?? "Playlist not found."}
-      </p>
-    );
-  }
-
   return (
-    <div
-      className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black"
-    >
+    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       <HeaderBar
         user={user}
         onProfile={() => {
@@ -321,70 +319,98 @@ export default function PlaylistPage() {
         }}
       />
 
-      <main className="flex-1 flex flex-col items-center p-6">
-        <h1 className="w-full max-w-xl text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-          {playlist.name}
-        </h1>
-
-        {userId && !checkingSaveStatus && !isOwner && (
-          <div className="w-full max-w-xl">
-            <button
-              type="button"
-              onClick={() => void handleToggleSavedPlaylist()}
-              disabled={
-                Boolean(currentSaveStatusError) ||
-                savingPlaylist
-              }
-              className="mt-3 rounded bg-zinc-950 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950"
-            >
-              {savingPlaylist
-                ? isSaved
-                  ? "Removing..."
-                  : "Saving..."
-                : isSaved
-                  ? "Saved · Remove"
-                  : "Save playlist"}
-            </button>
+      <main className="flex flex-1 flex-col items-center px-4 py-8 sm:px-6 sm:py-12">
+        {loading ? (
+          <div
+            aria-label="Loading playlist content"
+            aria-busy="true"
+            className="w-full max-w-4xl"
+          >
+            <div className="mb-6 space-y-3">
+              <div className="h-3 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-9 w-2/3 max-w-sm animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+            <section className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-4 border-b border-zinc-100 px-4 py-4 last:border-b-0 dark:border-zinc-800 sm:px-6"
+                >
+                  <div className="h-4 w-1/2 max-w-xs animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+                  <div className="h-8 w-8 animate-pulse rounded-full bg-zinc-100 dark:bg-zinc-800" />
+                </div>
+              ))}
+            </section>
+          </div>
+        ) : error || !playlist ? (
+          <p role="alert" className="w-full max-w-4xl text-sm text-red-600 dark:text-red-400">
+            {error ?? "Playlist not found."}
+          </p>
+        ) : (
+          <div className="w-full max-w-4xl">
+            <p className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">
+              PLAYLIST
+            </p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <h1 className="min-w-0 flex-1 break-words text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-4xl">
+                {playlist.name}
+              </h1>
+              {userId && !checkingSaveStatus && !isOwner && (
+                <button
+                  type="button"
+                  onClick={() => void handleToggleSavedPlaylist()}
+                  disabled={Boolean(currentSaveStatusError) || savingPlaylist}
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:px-4 sm:text-sm"
+                >
+                  {savingPlaylist
+                    ? isSaved
+                      ? "Removing..."
+                      : "Saving..."
+                    : isSaved
+                      ? "Saved · Remove"
+                      : "Save playlist"}
+                </button>
+              )}
+            </div>
             {currentSaveStatusError && (
-              <p role="alert" className="mt-2 text-sm text-red-600">
+              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {currentSaveStatusError}
+              </p>
+            )}
+
+            <SongList
+              mode="playlist"
+              songs={songs}
+              userId={user?.id ?? ""}
+              canSaveSongs={Boolean(
+                userId &&
+                  currentSaveStatus &&
+                  !isOwner &&
+                  currentSavedSongTokens
+              )}
+              savedSongTokens={currentSavedSongTokens ?? undefined}
+              onToggleSongSaved={handleToggleSongSaved}
+              refresh={async () => {
+                if (!playlist) return;
+                setSongs(
+                  (await fetchPlaylistSongs(playlist.id)).map((song) => ({
+                    ...song,
+                    isOwner: false,
+                  }))
+                );
+              }}
+              onRemove={isOwner ? handleRemove : undefined}
+              onSelect={handleSelectSong}
+              onReorder={isOwner ? handleReorder : undefined}
+            />
+            {currentSongSaveStatusError && (
+              <p role="alert" className="mt-3 w-full text-sm text-red-600 dark:text-red-400">
+                {currentSongSaveStatusError}
               </p>
             )}
           </div>
         )}
-
-        <SongList
-          mode="playlist"
-          songs={songs}
-          userId={user?.id ?? ""}
-          canSaveSongs={Boolean(
-            userId &&
-              currentSaveStatus &&
-              !isOwner &&
-              currentSavedSongTokens
-          )}
-          savedSongTokens={currentSavedSongTokens ?? undefined}
-          onToggleSongSaved={handleToggleSongSaved}
-          refresh={async () => {
-            if (!playlist) return;
-            setSongs(
-              (await fetchPlaylistSongs(playlist.id)).map((song) => ({
-                ...song,
-                isOwner: false,
-              }))
-            );
-          }}
-          onRemove={isOwner ? handleRemove : undefined}
-          onSelect={handleSelectSong}
-          onReorder={isOwner ? handleReorder : undefined}
-        />
-        {currentSongSaveStatusError && (
-          <p role="alert" className="mt-3 w-full max-w-xl text-sm text-red-600">
-            {currentSongSaveStatusError}
-          </p>
-        )}
       </main>
-
     </div>
   );
 }

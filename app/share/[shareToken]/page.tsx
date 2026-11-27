@@ -208,21 +208,21 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-black">
-        <HeaderBar
-          user={user}
-          onSignOut={handleSignOut}
-        />
+      <HeaderBar user={user} onSignOut={handleSignOut} />
 
-      <main className="flex-1 flex flex-col items-center p-6">
-        <div className="w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-6">
+      <main className="flex-1 flex flex-col items-center px-4 py-8 sm:px-6 sm:py-12">
+        <div className="w-full max-w-2xl rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none sm:p-8">
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">
+            SHARED SONG
+          </p>
+          <h1 className="mb-6 mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-3xl">
             {songName}
           </h1>
           {sharedSong && (
             <button
               type="button"
               onClick={() => playback.playSong(sharedSong, [sharedSong])}
-              className="rounded bg-zinc-800 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+              className="rounded-xl bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
             >
               Play song
             </button>

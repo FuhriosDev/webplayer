@@ -13,6 +13,7 @@ import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { useLibraryState } from "@/app/providers/LibraryStateProvider";
 import { usePlayback } from "@/app/providers/PlaybackProvider";
+import SignInButton from "./components/SignInButton";
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
@@ -103,15 +104,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    if (!showModal) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [showModal]);
-
   const handleSelectSong = (song: Song, queue: Song[]) =>
     playback.playSong(song, queue);
 
@@ -126,8 +118,7 @@ export default function Home() {
           onSignOut={handleSignOut}
         />
 
-      {/* Main content: flex-1 so it only fills remaining space and doesn't force extra scroll */}
-      <main className="flex-1 flex flex-col items-center p-6">
+      <main className="flex-1 flex flex-col items-center px-4 py-8 sm:px-6 sm:py-12">
         {user && (
           <>
             {showModal && (
@@ -140,9 +131,17 @@ export default function Home() {
               />
             )}
 
-            <div className="w-full max-w-3xl mt-6">
+            <div className="w-full max-w-5xl">
+              <div className="mb-7">
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-4xl">
+                  Your library
+                </h1>
+                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  Your songs and playlists, all in one place.
+                </p>
+              </div>
               <div
-                className="flex border-b border-zinc-200 dark:border-zinc-800"
+                className="inline-flex gap-1 rounded-xl bg-zinc-200/70 p-1 dark:bg-zinc-900"
                 role="tablist"
                 aria-label="Library"
               >
@@ -151,10 +150,10 @@ export default function Home() {
                   role="tab"
                   aria-selected={library.libraryView === "songs"}
                   onClick={() => library.setLibraryView("songs")}
-                  className={`border-b-2 px-5 py-3 text-sm font-semibold ${
+                  className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors ${
                     library.libraryView === "songs"
-                      ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
-                      : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
                   Songs
@@ -165,10 +164,10 @@ export default function Home() {
                   role="tab"
                   aria-selected={library.libraryView === "playlists"}
                   onClick={() => library.setLibraryView("playlists")}
-                  className={`border-b-2 px-5 py-3 text-sm font-semibold ${
+                  className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors ${
                     library.libraryView === "playlists"
-                      ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
-                      : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
                   Playlists
@@ -213,6 +212,43 @@ export default function Home() {
               </div>
             </div>
           </>
+        )}
+        {!user && (
+          <section className="relative mt-4 w-full max-w-2xl overflow-hidden rounded-3xl border border-zinc-200/80 bg-white px-6 py-8 text-center shadow-sm shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-none sm:mt-8 sm:px-12 sm:py-12">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-blue-500/10 to-transparent"
+            />
+            <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-7 w-7"
+                aria-hidden="true"
+              >
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <p className="relative mt-6 text-sm font-medium text-blue-600 dark:text-blue-400">
+              YOUR PERSONAL MUSIC SPACE
+            </p>
+            <h1 className="relative mt-2 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-4xl">
+              Your music, in one place.
+            </h1>
+            <p className="relative mx-auto mt-3 max-w-md text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+              Sign in to organize your songs, create playlists, and keep your
+              collection close.
+            </p>
+            <div className="relative mt-6 flex justify-center">
+              <SignInButton />
+            </div>
+          </section>
         )}
       </main>
 

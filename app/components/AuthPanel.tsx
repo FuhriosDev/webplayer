@@ -70,15 +70,18 @@ export default function AuthPanel() {
 
   if (session?.user) {
     return (
-      <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="w-full rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            Signed in as{" "}
-            <span className="font-semibold">{session.user.email}</span>
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Signed in as
+          </p>
+          <p className="break-all text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {session.user.email}
           </p>
           <button
+            type="button"
             onClick={signOut}
-            className="inline-flex h-10 items-center justify-center rounded-2xl bg-zinc-950 px-5 text-sm font-semibold text-white hover:bg-zinc-800"
+            className="mt-2 inline-flex h-11 items-center justify-center rounded-xl bg-zinc-950 px-5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
           >
             Sign out
           </button>
@@ -88,15 +91,29 @@ export default function AuthPanel() {
   }
 
   return (
-    <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex gap-2">
+    <div className="w-full rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:p-8">
+      <div className="mb-6">
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+          {mode === "signin" ? "Sign in to Webplayer" : "Create your account"}
+        </h2>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          Keep your music library and playlists together.
+        </p>
+      </div>
+      <div
+        className="flex gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+        role="tablist"
+        aria-label="Account access"
+      >
         <button
           type="button"
           onClick={() => setMode("signin")}
-          className={`flex-1 rounded-2xl px-4 py-2 text-sm font-semibold ${
+          role="tab"
+          aria-selected={mode === "signin"}
+          className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
             mode === "signin"
-              ? "bg-zinc-950 text-white"
-              : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           }`}
         >
           Sign in
@@ -104,10 +121,12 @@ export default function AuthPanel() {
         <button
           type="button"
           onClick={() => setMode("signup")}
-          className={`flex-1 rounded-2xl px-4 py-2 text-sm font-semibold ${
+          role="tab"
+          aria-selected={mode === "signup"}
+          className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
             mode === "signup"
-              ? "bg-zinc-950 text-white"
-              : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           }`}
         >
           Sign up
@@ -119,9 +138,11 @@ export default function AuthPanel() {
           Email
           <input
             type="email"
+            autoComplete="email"
+            required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             placeholder="you@example.com"
           />
         </label>
@@ -130,23 +151,42 @@ export default function AuthPanel() {
           Password
           <input
             type="password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
-            placeholder="Choose a password"
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            placeholder={
+              mode === "signin" ? "Enter your password" : "Choose a password"
+            }
           />
         </label>
 
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-12 items-center justify-center rounded-xl bg-zinc-950 px-6 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
         >
           {mode === "signin" ? "Sign in" : "Sign up"}
         </button>
 
         {message && (
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">{message}</p>
+          <p
+            role={
+              message.startsWith("Check your email") ||
+              message.startsWith("Signed in")
+                ? "status"
+                : "alert"
+            }
+            className={`rounded-xl px-4 py-3 text-sm ${
+              message.startsWith("Check your email") ||
+              message.startsWith("Signed in")
+                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+            }`}
+          >
+            {message}
+          </p>
         )}
       </form>
     </div>

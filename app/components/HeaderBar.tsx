@@ -55,49 +55,73 @@ export default function HeaderBar({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/90 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
-      <div className="relative h-10">
-        <div className="mx-auto max-w-3xl h-full" />
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/85">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="inline-flex items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+          </span>
+          <span className="text-base font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+            Webplayer
+          </span>
+        </div>
 
-          {/* If signed in: avatar + dropdown, else SignInButton */}
+        <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
-            <div className="relative">
+            <>
               <button
-                ref={avatarRef}
-                onClick={() => setOpen((v) => !v)}
-                aria-haspopup="true"
-                aria-expanded={open}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-950 text-sm font-semibold text-white hover:bg-zinc-800 transition"
+                type="button"
+                onClick={() => void handleProfile()}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
               >
-                {user?.email?.[0]?.toUpperCase() || "?"}
+                <span>Library</span>
               </button>
-
-              {open && (
-                <div
-                  ref={dropdownRef}
-                  className="absolute right-0 mt-2 w-64 rounded-3xl border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+              <div className="relative">
+                <button
+                  ref={avatarRef}
+                  onClick={() => setOpen((v) => !v)}
+                  aria-haspopup="true"
+                  aria-expanded={open}
+                  aria-label="Account menu"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
                 >
-                  <div className="flex flex-col items-center">
-                    <p className="text-center text-sm text-zinc-900 dark:text-zinc-100 break-all">
-                      {user?.email}
-                    </p>
-                    <button
-                      onClick={handleProfile}
-                      className="mt-4 inline-flex w-full justify-center rounded-2xl bg-zinc-800 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
-                    >
-                      Library
-                    </button>
-                    <button
-                      onClick={handleSignOut}
-                      className="mt-3 inline-flex w-full justify-center rounded-2xl bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                    >
-                      Sign out
-                    </button>
+                  {user?.email?.[0]?.toUpperCase() || "?"}
+                </button>
+
+                {open && (
+                  <div
+                    ref={dropdownRef}
+                    className="absolute right-0 mt-2 w-64 rounded-2xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
+                  >
+                    <div className="flex flex-col">
+                      <p className="break-all px-2 py-2 text-sm text-zinc-600 dark:text-zinc-300">
+                        {user?.email}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void handleSignOut()}
+                        className="inline-flex h-10 w-full items-center rounded-xl px-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-red-400 dark:hover:bg-red-950/40"
+                      >
+                        Sign out
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           ) : (
             <SignInButton />
           )}

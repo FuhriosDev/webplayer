@@ -261,7 +261,7 @@ export default function MusicPlayer({
                 className="h-5 w-5"
                 aria-hidden="true"
               >
-                <path d="M7 5h4v14H7zM15 5h4v14h-4z" />
+                <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
               </svg>
             ) : (
               <svg

@@ -122,9 +122,9 @@ export default function UploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-800 dark:bg-zinc-950 max-h-[80vh] overflow-auto">
-        <h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm">
+      <div className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:p-8">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
           Upload an audio file
         </h1>
 
@@ -132,7 +132,7 @@ export default function UploadModal({
           <div className="relative">
             <button
               type="button"
-              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+              className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-900 transition focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             >
               {file ? (
                 <div className="flex items-center justify-between gap-3">
@@ -160,7 +160,7 @@ export default function UploadModal({
             type="text"
             value={songName}
             onChange={(e) => setSongName(e.target.value)}
-            className="rounded-xl border border-zinc-200 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            className="rounded-xl border border-zinc-200 bg-white p-3 text-sm outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
             placeholder="Enter song name"
             required
           />
@@ -170,17 +170,19 @@ export default function UploadModal({
           <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
 
-        <div className="flex justify-between mt-8">
+        <div className="mt-8 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <button
+            type="button"
             onClick={handleUpload}
             disabled={uploading}
-            className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-950 px-5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
           >
             {uploading ? "Uploading..." : "Upload audio"}
           </button>
           <button
+            type="button"
             onClick={onClose}
-            className="inline-flex h-12 items-center justify-center rounded-2xl bg-zinc-950 px-6 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 px-5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
           >
             Close
           </button>

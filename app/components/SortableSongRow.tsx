@@ -30,7 +30,7 @@ export function SortableSongRow({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className="flex flex-wrap items-center border-b border-zinc-100 px-6 py-3 last:border-b-0 dark:border-zinc-800"
+      className="group flex flex-wrap items-center gap-y-2 border-b border-zinc-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-zinc-800 dark:hover:bg-zinc-900/60 sm:px-6"
     >
       {disabled ? null : (
         <button
@@ -39,7 +39,7 @@ export function SortableSongRow({
           {...listeners}
           aria-label="Reorder song"
           title="Drag to reorder"
-          className="mr-3 cursor-grab touch-none text-zinc-500 active:cursor-grabbing"
+          className="mr-1 cursor-grab touch-none text-zinc-400 transition-colors hover:text-zinc-700 active:cursor-grabbing dark:hover:text-zinc-200"
         >
           ⠿
         </button>
