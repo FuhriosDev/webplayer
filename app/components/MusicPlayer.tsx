@@ -199,8 +199,8 @@ export default function MusicPlayer({
         }}
       />
 
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(18rem,1.5fr)_minmax(0,1fr)] sm:gap-x-6 sm:gap-y-2 sm:px-6 sm:py-3">
-        <div className="min-w-0">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] items-center gap-x-3 gap-y-2 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(18rem,1.5fr)_minmax(0,1fr)] sm:grid-rows-[auto_auto] sm:gap-x-6 sm:gap-y-2 sm:px-6 sm:py-3">
+        <div className="col-start-1 row-start-1 min-w-0">
           <p
             className="truncate text-sm font-semibold"
             title={title || "Now playing"}
@@ -209,7 +209,7 @@ export default function MusicPlayer({
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-0.5 sm:justify-center sm:gap-1">
+        <div className="col-span-2 row-start-2 flex items-center justify-center gap-0.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:gap-1">
           <ControlButton
             label="Shuffle"
             active={shuffle}
@@ -318,7 +318,7 @@ export default function MusicPlayer({
           </ControlButton>
         </div>
 
-        <div className="col-span-2 flex min-w-0 items-center justify-end gap-1 sm:col-span-1 sm:gap-2">
+        <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-1 sm:col-span-1 sm:col-start-3 sm:row-start-1 sm:gap-2">
           <a
             href={downloadUrl}
             download
@@ -440,7 +440,7 @@ export default function MusicPlayer({
           />
         </div>
 
-        <div className="col-span-2 grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-2 sm:col-span-3">
+        <div className="col-span-2 row-start-3 grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-2 sm:col-span-3 sm:col-start-1 sm:row-start-2">
           <span className="text-right text-[11px] tabular-nums text-zinc-500">
             {formatTime(currentTime)}
           </span>
