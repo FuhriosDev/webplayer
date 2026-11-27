@@ -186,8 +186,18 @@ describe("song data loading errors", () => {
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockResolvedValue({
         data: [
-          { id: "playlist-1", name: "Favorites", created_at: "2026-01-01" },
-          { id: "playlist-2", name: "Road trip", created_at: "2026-01-02" },
+          {
+            id: "playlist-1",
+            name: "Favorites",
+            created_at: "2026-01-01",
+            share_token: null,
+          },
+          {
+            id: "playlist-2",
+            name: "Road trip",
+            created_at: "2026-01-02",
+            share_token: null,
+          },
         ],
         error: null,
       }),
@@ -200,8 +210,13 @@ describe("song data loading errors", () => {
         error: null,
       }),
     };
+    const savedPlaylistsQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
     mocks.from
       .mockReturnValueOnce(playlistsQuery)
+      .mockReturnValueOnce(savedPlaylistsQuery)
       .mockReturnValueOnce(membershipQuery);
 
     await expect(fetchPlaylistsForSong("share-token")).resolves.toEqual([
@@ -209,12 +224,14 @@ describe("song data loading errors", () => {
         id: "playlist-1",
         name: "Favorites",
         created_at: "2026-01-01",
+        shareToken: null,
         containsSong: false,
       },
       {
         id: "playlist-2",
         name: "Road trip",
         created_at: "2026-01-02",
+        shareToken: null,
         containsSong: true,
       },
     ]);

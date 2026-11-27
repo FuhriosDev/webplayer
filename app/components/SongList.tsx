@@ -19,7 +19,7 @@ import {
 import type { Song } from "@/lib/song";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { deleteSong, renameSong, unsaveSong } from "@/lib/songActions";
-import SongDeleteDialog from "./SongDeleteDialog";
+import ConfirmationDialog from "./ConfirmationDialog";
 import SongListRow from "./SongListRow";
 
 type SongListProps = {
@@ -37,9 +37,18 @@ type SongListProps = {
   mode?: "library" | "playlist";
   onRemove?: (shareToken: string) => Promise<void> | void;
   onReorder?: (orderedShareTokens: string[]) => void;
+  canSaveSongs?: boolean;
+  savedSongTokens?: ReadonlySet<string>;
+  onToggleSongSaved?: (
+    shareToken: string,
+    isSaved: boolean
+  ) => Promise<void>;
 };
 
 type SongFilter = "all" | "uploads" | "saved";
+type PendingSongAction =
+  | { type: "delete"; filePath: string }
+  | { type: "unsave"; shareToken: string };
 
 const filters: { id: SongFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -57,10 +66,17 @@ export default function SongList({
   mode = "library",
   onRemove,
   onReorder,
+  canSaveSongs = false,
+  savedSongTokens,
+  onToggleSongSaved,
 }: SongListProps) {
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingSongAction | null>(
+    null
+  );
+  const [confirmationError, setConfirmationError] = useState<string | null>(
+    null
+  );
+  const [confirming, setConfirming] = useState(false);
   const [filter, setFilter] = useState<SongFilter>("all");
 
   const visibleSongs =
@@ -77,27 +93,33 @@ export default function SongList({
     await refresh();
   };
 
-  const handleUnsave = async (shareToken: string) => {
-    await unsaveSong(userId, shareToken);
-    await refresh();
-  };
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
 
-  const handleDeleteConfirm = async () => {
-    if (!pendingDelete) return;
-
-    setDeleting(true);
-    setDeleteError(null);
+    setConfirming(true);
+    setConfirmationError(null);
     try {
-      await deleteSong(pendingDelete);
-
-      const deletedFilePath = pendingDelete;
-      setPendingDelete(null);
-      if (onDelete) onDelete(deletedFilePath);
-      else await refresh();
+      if (pendingAction.type === "delete") {
+        await deleteSong(pendingAction.filePath);
+        setPendingAction(null);
+        if (onDelete) onDelete(pendingAction.filePath);
+        else await refresh();
+      } else {
+        await unsaveSong(userId, pendingAction.shareToken);
+        setPendingAction(null);
+        await refresh();
+      }
     } catch (error) {
-      setDeleteError(getErrorMessage(error, "Could not delete this song."));
+      setConfirmationError(
+        getErrorMessage(
+          error,
+          pendingAction.type === "delete"
+            ? "Could not delete this song."
+            : "Could not remove this saved song."
+        )
+      );
     } finally {
-      setDeleting(false);
+      setConfirming(false);
     }
   };
 
@@ -184,11 +206,17 @@ export default function SongList({
                 onSelect={onSelect}
                 onEdit={handleEdit}
                 onDelete={(filePath) => {
-                  setDeleteError(null);
-                  setPendingDelete(filePath);
+                  setConfirmationError(null);
+                  setPendingAction({ type: "delete", filePath });
                 }}
-                onUnsave={handleUnsave}
+                onUnsave={(shareToken) => {
+                  setConfirmationError(null);
+                  setPendingAction({ type: "unsave", shareToken });
+                }}
                 onRemove={onRemove}
+                canSaveSong={canSaveSongs && Boolean(onToggleSongSaved)}
+                isSaved={savedSongTokens?.has(song.shareToken) ?? false}
+                onToggleSongSaved={onToggleSongSaved}
               />
             ))}
           </ul>
@@ -200,12 +228,22 @@ export default function SongList({
           This playlist is empty.
         </p>
       )}
-      {pendingDelete && (
-        <SongDeleteDialog
-          error={deleteError}
-          pending={deleting}
-          onConfirm={() => void handleDeleteConfirm()}
-          onCancel={() => setPendingDelete(null)}
+      {pendingAction && (
+        <ConfirmationDialog
+          message={
+            pendingAction.type === "delete"
+              ? "Are you sure you want to delete this song?"
+              : "Are you sure you want to remove this song from your saved songs?"
+          }
+          confirmLabel={pendingAction.type === "delete" ? "Yes, Delete" : "Yes, Remove"}
+          pendingLabel={pendingAction.type === "delete" ? "Deleting..." : "Removing..."}
+          error={confirmationError}
+          pending={confirming}
+          onConfirm={() => void handleConfirmAction()}
+          onCancel={() => {
+            setPendingAction(null);
+            setConfirmationError(null);
+          }}
         />
       )}
     </div>

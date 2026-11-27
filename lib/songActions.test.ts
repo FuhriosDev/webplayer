@@ -12,7 +12,13 @@ vi.mock("./supabaseClient", () => ({
   },
 }));
 
-import { deleteSong, renameSong, unsaveSong } from "./songActions";
+import {
+  deleteSong,
+  fetchSavedSongTokens,
+  renameSong,
+  saveSong,
+  unsaveSong,
+} from "./songActions";
 
 describe("song mutation errors", () => {
   beforeEach(() => {
@@ -63,5 +69,47 @@ describe("song mutation errors", () => {
     await expect(unsaveSong("user-1", "share-token")).rejects.toThrow(
       "No saved song was removed."
     );
+  });
+
+  it("saves a song for the current user", async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    mocks.from.mockReturnValueOnce({ insert });
+
+    await saveSong("user-1", "share-token");
+
+    expect(insert).toHaveBeenCalledWith({
+      user_id: "user-1",
+      share_token: "share-token",
+    });
+  });
+
+  it("treats an already-saved song as saved", async () => {
+    const insert = vi.fn().mockResolvedValue({
+      error: { code: "23505", message: "duplicate key" },
+    });
+    mocks.from.mockReturnValueOnce({ insert });
+
+    await expect(saveSong("user-1", "share-token")).resolves.toBeUndefined();
+  });
+
+  it("loads saved status for playlist songs", async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: [{ share_token: "saved-token" }],
+        error: null,
+      }),
+    };
+    mocks.from.mockReturnValueOnce(query);
+
+    await expect(
+      fetchSavedSongTokens("user-1", ["saved-token", "unsaved-token"])
+    ).resolves.toEqual(new Set(["saved-token"]));
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(query.in).toHaveBeenCalledWith("share_token", [
+      "saved-token",
+      "unsaved-token",
+    ]);
   });
 });

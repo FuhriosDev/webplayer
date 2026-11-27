@@ -1,31 +1,37 @@
 "use client";
 
-type SongDeleteDialogProps = {
+type ConfirmationDialogProps = {
+  message: string;
+  confirmLabel: string;
+  pendingLabel: string;
   error: string | null;
   pending: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
 
-export default function SongDeleteDialog({
+export default function ConfirmationDialog({
+  message,
+  confirmLabel,
+  pendingLabel,
   error,
   pending,
   onConfirm,
   onCancel,
-}: SongDeleteDialogProps) {
+}: ConfirmationDialogProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="delete-song-title"
+      aria-labelledby="confirmation-dialog-title"
     >
       <div className="flex flex-col items-center rounded-xl bg-white p-8 shadow-lg dark:bg-zinc-900">
         <p
-          id="delete-song-title"
+          id="confirmation-dialog-title"
           className="mb-6 text-lg text-zinc-900 dark:text-zinc-100"
         >
-          Are you sure you want to delete this song?
+          {message}
         </p>
         {error && (
           <p role="alert" className="mb-4 text-sm text-red-600">
@@ -39,7 +45,7 @@ export default function SongDeleteDialog({
             onClick={onConfirm}
             className="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
           >
-            {pending ? "Deleting..." : "Yes, Delete"}
+            {pending ? pendingLabel : confirmLabel}
           </button>
           <button
             type="button"

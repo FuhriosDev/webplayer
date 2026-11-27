@@ -5,16 +5,55 @@ import { useRouter } from "next/navigation";
 import {
   createPlaylist as createPlaylistRecord,
   deletePlaylist,
+  ensurePlaylistShareToken,
   renamePlaylist,
+  unsavePlaylist,
   type Playlist,
 } from "@/lib/playlists";
+import { getErrorMessage } from "@/lib/errorMessage";
+import ConfirmationDialog from "./ConfirmationDialog";
+import { useTransientNotice } from "@/app/hooks/useTransientNotice";
+import TransientNotice from "./TransientNotice";
+
+type PlaylistFilter = "all" | "created" | "saved";
+type PendingPlaylistAction =
+  | { type: "delete"; playlistId: string }
+  | { type: "unsave"; playlistId: string };
+
+const filters: { id: PlaylistFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "created", label: "Created" },
+  { id: "saved", label: "Saved" },
+];
 
 type PlaylistPanelProps = {
+  userId: string;
   playlists: Playlist[];
   onPlaylistsChange: (playlists: Playlist[]) => void;
 };
 
+function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
 export default function PlaylistPanel({
+  userId,
   playlists,
   onPlaylistsChange,
 }: PlaylistPanelProps) {
@@ -27,11 +66,23 @@ export default function PlaylistPanel({
   const [editingPlaylistId, setEditingPlaylistId] =
     useState<string | null>(null);
   const [editedPlaylistName, setEditedPlaylistName] = useState("");
-  const [pendingDeletePlaylistId, setPendingDeletePlaylistId] =
-    useState<string | null>(null);
+  const [pendingPlaylistAction, setPendingPlaylistAction] =
+    useState<PendingPlaylistAction | null>(null);
+  const [confirmationError, setConfirmationError] = useState<string | null>(
+    null
+  );
+  const [confirmingPlaylistAction, setConfirmingPlaylistAction] =
+    useState(false);
 
   const [playlistError, setPlaylistError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<PlaylistFilter>("all");
+  const { notice, showNotice } = useTransientNotice();
+  const visiblePlaylists = playlists.filter((playlist) => {
+    if (filter === "created") return !playlist.isSaved;
+    if (filter === "saved") return playlist.isSaved;
+    return true;
+  });
 
   const handleCreatePlaylist = async (
     event: React.FormEvent<HTMLFormElement>
@@ -48,11 +99,7 @@ export default function PlaylistPanel({
       setNewPlaylistName("");
       return true;
     } catch (error) {
-      setPlaylistError(
-        error instanceof Error
-          ? error.message
-          : "Could not create playlist."
-      );
+      setPlaylistError(getErrorMessage(error, "Could not create playlist."));
       return false;
     } finally {
       setCreating(false);
@@ -75,42 +122,71 @@ export default function PlaylistPanel({
 
       setEditingPlaylistId(null);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "Could not rename playlist."
-      );
+      setActionError(getErrorMessage(error, "Could not rename playlist."));
     }
   };
 
-  const handleDeletePlaylist = async (playlistId: string) => {
-    setActionError(null);
+  const handleConfirmPlaylistAction = async () => {
+    if (!pendingPlaylistAction) return;
 
+    setConfirmingPlaylistAction(true);
+    setConfirmationError(null);
     try {
-      await deletePlaylist(playlistId);
+      if (pendingPlaylistAction.type === "delete") {
+        await deletePlaylist(pendingPlaylistAction.playlistId);
+      } else {
+        await unsavePlaylist(pendingPlaylistAction.playlistId, userId);
+      }
 
       onPlaylistsChange(
-        playlists.filter((playlist) => playlist.id !== playlistId)
+        playlists.filter(
+          (playlist) => playlist.id !== pendingPlaylistAction.playlistId
+        )
       );
-
-      setPendingDeletePlaylistId(null);
+      setPendingPlaylistAction(null);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "Could not delete playlist."
+      setConfirmationError(
+        getErrorMessage(
+          error,
+          pendingPlaylistAction.type === "delete"
+            ? "Could not delete playlist."
+            : "Could not remove saved playlist."
+        )
       );
+    } finally {
+      setConfirmingPlaylistAction(false);
     }
   };
 
   const handleSharePlaylist = async (playlist: Playlist) => {
-    const shareUrl = `${window.location.origin}/playlists/${playlist.id}`;
+    let shareToken = playlist.shareToken;
+    if (!shareToken) {
+      if (playlist.isSaved) {
+        setActionError("This playlist no longer has an active share link.");
+        return;
+      }
 
+      try {
+        shareToken = await ensurePlaylistShareToken(playlist.id);
+        onPlaylistsChange(
+          playlists.map((item) =>
+            item.id === playlist.id ? { ...item, shareToken } : item
+          )
+        );
+      } catch (error) {
+        setActionError(
+          getErrorMessage(error, "Could not create a playlist share link.")
+        );
+        return;
+      }
+    }
+
+    const shareUrl = `${window.location.origin}/playlists/${shareToken}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert("Playlist link copied to clipboard!");
+      showNotice("Playlist link copied to clipboard.");
     } catch {
-      alert(`Playlist link: ${shareUrl}`);
+      showNotice(`Copy this playlist link: ${shareUrl}`);
     }
   };
 
@@ -124,8 +200,26 @@ export default function PlaylistPanel({
 
   return (
     <>
+      {notice && <TransientNotice message={notice} />}
       <div className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white shadow dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex justify-end px-6 pt-4 pb-4">
+        <div className="flex items-center gap-2 px-6 pb-4 pt-6">
+          <div className="flex flex-1 gap-2">
+            {filters.map((filterOption) => (
+              <button
+                key={filterOption.id}
+                type="button"
+                onClick={() => setFilter(filterOption.id)}
+                aria-pressed={filter === filterOption.id}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                  filter === filterOption.id
+                    ? "bg-blue-600 text-white shadow-md hover:bg-blue-700"
+                    : "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {filterOption.label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
@@ -150,7 +244,7 @@ export default function PlaylistPanel({
         )}
 
         <ul>
-          {playlists.map((playlist) =>
+          {visiblePlaylists.map((playlist) =>
             editingPlaylistId === playlist.id ? (
               <li
                 key={playlist.id}
@@ -193,36 +287,39 @@ export default function PlaylistPanel({
                 <button
                   type="button"
                   onClick={() =>
-                    router.push(`/playlists/${playlist.id}`)
+                    router.push(
+                      `/playlists/${playlist.shareToken ?? playlist.id}`
+                    )
                   }
                   className="flex-1 cursor-pointer text-left text-zinc-800 hover:underline dark:text-zinc-100"
                 >
                   {playlist.name}
                 </button>
-
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    aria-label={`Edit ${playlist.name}`}
-                    onClick={() => {
-                      setEditingPlaylistId(playlist.id);
-                      setEditedPlaylistName(playlist.name);
-                    }}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
+                  {!playlist.isSaved && (
+                    <button
+                      type="button"
+                      aria-label={`Edit ${playlist.name}`}
+                      onClick={() => {
+                        setEditingPlaylistId(playlist.id);
+                        setEditedPlaylistName(playlist.name);
+                      }}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-blue-600 text-white hover:bg-blue-700"
                     >
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                    </svg>
-                  </button>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-5 w-5"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -247,71 +344,80 @@ export default function PlaylistPanel({
                     </svg>
                   </button>
 
-                  <button
-                    type="button"
-                    aria-label={`Delete ${playlist.name}`}
-                    onClick={() =>
-                      setPendingDeletePlaylistId(playlist.id)
-                    }
-                    className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5"
+                  {playlist.isSaved ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove saved playlist ${playlist.name}`}
+                      title="Remove saved playlist"
+                      onClick={() => {
+                        setConfirmationError(null);
+                        setPendingPlaylistAction({
+                          type: "unsave",
+                          playlistId: playlist.id,
+                        });
+                      }}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
                     >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                      <path d="M10 11v6" />
-                      <path d="M14 11v6" />
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                    </svg>
-                  </button>
+                      <TrashIcon />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${playlist.name}`}
+                      onClick={() => {
+                        setConfirmationError(null);
+                        setPendingPlaylistAction({
+                          type: "delete",
+                          playlistId: playlist.id,
+                        });
+                      }}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
                 </div>
               </li>
             )
           )}
         </ul>
 
-        {playlists.length === 0 && (
+        {visiblePlaylists.length === 0 && (
           <p className="px-6 py-4 text-sm text-zinc-500">
-            No playlists yet.
+            {filter === "created"
+              ? "No created playlists yet."
+              : filter === "saved"
+                ? "No saved playlists yet."
+                : "No playlists yet."}
           </p>
         )}
       </div>
 
-      {pendingDeletePlaylistId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="flex flex-col items-center rounded-xl bg-white p-8 shadow-lg dark:bg-zinc-900">
-            <p className="mb-6 text-lg text-zinc-900 dark:text-zinc-100">
-              Are you sure you want to delete this playlist?
-            </p>
-
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  void handleDeletePlaylist(pendingDeletePlaylistId)
-                }
-                className="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
-              >
-                Yes, Delete
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPendingDeletePlaylistId(null)}
-                className="rounded bg-zinc-300 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {pendingPlaylistAction && (
+        <ConfirmationDialog
+          message={
+            pendingPlaylistAction.type === "delete"
+              ? "Are you sure you want to delete this playlist?"
+              : "Are you sure you want to remove this playlist from your saved playlists?"
+          }
+          confirmLabel={
+            pendingPlaylistAction.type === "delete"
+              ? "Yes, Delete"
+              : "Yes, Remove"
+          }
+          pendingLabel={
+            pendingPlaylistAction.type === "delete"
+              ? "Deleting..."
+              : "Removing..."
+          }
+          error={confirmationError}
+          pending={confirmingPlaylistAction}
+          onConfirm={() => void handleConfirmPlaylistAction()}
+          onCancel={() => {
+            setPendingPlaylistAction(null);
+            setConfirmationError(null);
+          }}
+        />
       )}
 
       {showCreateModal && (

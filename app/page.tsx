@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import UploadModal from "./components/UploadModal";
 import MusicPlayer from "./components/MusicPlayer";
@@ -7,89 +7,103 @@ import SongList from "./components/SongList";
 import { fetchSongs } from "@/lib/fetchSongs";
 import HeaderBar from "./components/HeaderBar";
 import PlaylistPanel from "./components/PlaylistPanel";
-import {
-  fetchPlaylists,
-  type Playlist,
-} from "@/lib/playlists";
+import { fetchPlaylists } from "@/lib/playlists";
 import type { Song } from "@/lib/song";
 import type { Session } from "@supabase/supabase-js";
 import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
-
-type LibraryView = "songs" | "playlists";
+import { useLibraryState } from "@/app/providers/LibraryStateProvider";
 
 export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioTitle, setAudioTitle] = useState<string | null>(null);
-  const [songs, setSongs] = useState<Song[]>([]);
   const [songsError, setSongsError] = useState<string | null>(null);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [playQueue, setPlayQueue] = useState<Song[]>([]);
   const [playRequest, setPlayRequest] = useState(0);
-  const [libraryView, setLibraryView] = useState<LibraryView>("songs");
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [playlistsError, setPlaylistsError] = useState<string | null>(null);
-  const previousUserId = useRef<string | null>(null);
+  const library = useLibraryState();
+  const {
+    songsLoaded,
+    setSongs,
+    setSongsLoaded,
+    playlistsLoaded,
+    setPlaylists,
+    setPlaylistsLoaded,
+    syncUser,
+  } = library;
 
   const handleSessionChange = useCallback((session: Session | null) => {
     const nextUserId = session?.user.id ?? null;
-    if (previousUserId.current === nextUserId) return;
+    if (!syncUser(nextUserId)) return;
 
-    previousUserId.current = nextUserId;
-    setSongs([]);
     setSongsError(null);
-    setPlaylists([]);
     setPlaylistsError(null);
     setAudioUrl(null);
     setAudioTitle(null);
     setCurrentFilePath(null);
-  }, []);
+  }, [syncUser]);
   const session = useAuthSession(handleSessionChange);
   const user = session?.user ?? null;
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     let cancelled = false;
-    const loadSongs = async () => {
-      try {
-        const loadedSongs = await fetchSongs();
-        if (cancelled) return;
-        setSongs(loadedSongs);
-        setSongsError(null);
-      } catch (error) {
-        if (!cancelled) {
-          setSongsError(getErrorMessage(error, "Could not load songs."));
+    if (!songsLoaded) {
+      const loadSongs = async () => {
+        try {
+          const loadedSongs = await fetchSongs();
+          if (cancelled) return;
+          setSongs(loadedSongs);
+          setSongsLoaded(true);
+          setSongsError(null);
+        } catch (error) {
+          if (!cancelled) {
+            setSongsError(getErrorMessage(error, "Could not load songs."));
+          }
         }
-      }
-    };
-    const loadPlaylists = async () => {
-      try {
-        const loadedPlaylists = await fetchPlaylists();
-        if (cancelled) return;
-        setPlaylists(loadedPlaylists);
-        setPlaylistsError(null);
-      } catch (error) {
-        if (!cancelled) {
-          setPlaylistsError(
-            getErrorMessage(error, "Could not load playlists.")
-          );
-        }
-      }
-    };
+      };
+      void loadSongs();
+    }
 
-    void loadSongs();
-    void loadPlaylists();
+    if (!playlistsLoaded) {
+      const loadPlaylists = async () => {
+        try {
+          const loadedPlaylists = await fetchPlaylists();
+          if (cancelled) return;
+          setPlaylists(loadedPlaylists);
+          setPlaylistsLoaded(true);
+          setPlaylistsError(null);
+        } catch (error) {
+          if (!cancelled) {
+            setPlaylistsError(
+              getErrorMessage(error, "Could not load playlists.")
+            );
+          }
+        }
+      };
+      void loadPlaylists();
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [
+    user?.id,
+    songsLoaded,
+    setSongs,
+    setSongsLoaded,
+    playlistsLoaded,
+    setPlaylists,
+    setPlaylistsLoaded,
+  ]);
 
   const refreshSongs = async () => {
     try {
       setSongs(await fetchSongs());
+      setSongsLoaded(true);
       setSongsError(null);
     } catch (error) {
       setSongsError(getErrorMessage(error, "Could not load songs."));
@@ -165,10 +179,10 @@ export default function Home() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={libraryView === "songs"}
-                  onClick={() => setLibraryView("songs")}
+                  aria-selected={library.libraryView === "songs"}
+                  onClick={() => library.setLibraryView("songs")}
                   className={`border-b-2 px-5 py-3 text-sm font-semibold ${
-                    libraryView === "songs"
+                    library.libraryView === "songs"
                       ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
                       : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
@@ -179,10 +193,10 @@ export default function Home() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={libraryView === "playlists"}
-                  onClick={() => setLibraryView("playlists")}
+                  aria-selected={library.libraryView === "playlists"}
+                  onClick={() => library.setLibraryView("playlists")}
                   className={`border-b-2 px-5 py-3 text-sm font-semibold ${
-                    libraryView === "playlists"
+                    library.libraryView === "playlists"
                       ? "border-zinc-950 text-zinc-950 dark:border-white dark:text-white"
                       : "border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
@@ -191,14 +205,14 @@ export default function Home() {
                 </button>
               </div>
 
-              <div hidden={libraryView !== "songs"}>
+              <div hidden={library.libraryView !== "songs"}>
                 {songsError && (
                   <p role="alert" className="mt-3 text-sm text-red-600">
                     {songsError}
                   </p>
                 )}
                 <SongList
-                  songs={songs}
+                  songs={library.songs}
                   userId={user.id}
                   refresh={refreshSongs}
                   onUpload={() => setShowModal(true)}
@@ -219,15 +233,16 @@ export default function Home() {
                 />
               </div>
 
-              <div hidden={libraryView !== "playlists"}>
+              <div hidden={library.libraryView !== "playlists"}>
                 {playlistsError && (
                   <p role="alert" className="mt-3 text-sm text-red-600">
                     {playlistsError}
                   </p>
                 )}
                 <PlaylistPanel
-                  playlists={playlists}
-                  onPlaylistsChange={setPlaylists}
+                  userId={user.id}
+                  playlists={library.playlists}
+                  onPlaylistsChange={library.setPlaylists}
                 />
               </div>
             </div>

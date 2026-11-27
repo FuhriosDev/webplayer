@@ -10,6 +10,8 @@ import {
 import type { Song } from "@/lib/song";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { SortableSongRow } from "./SortableSongRow";
+import { useTransientNotice } from "@/app/hooks/useTransientNotice";
+import TransientNotice from "./TransientNotice";
 
 type SongListRowProps = {
   song: Song;
@@ -24,8 +26,14 @@ type SongListRowProps = {
   ) => void;
   onEdit: (filePath: string, newName: string) => Promise<void>;
   onDelete: (filePath: string) => void;
-  onUnsave: (shareToken: string) => Promise<void>;
+  onUnsave: (shareToken: string) => void;
   onRemove?: (shareToken: string) => Promise<void> | void;
+  canSaveSong?: boolean;
+  isSaved?: boolean;
+  onToggleSongSaved?: (
+    shareToken: string,
+    isSaved: boolean
+  ) => Promise<void>;
 };
 
 function DeleteIcon() {
@@ -78,6 +86,9 @@ export default function SongListRow({
   onDelete,
   onUnsave,
   onRemove,
+  canSaveSong = false,
+  isSaved = false,
+  onToggleSongSaved,
 }: SongListRowProps) {
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(song.name);
@@ -86,7 +97,9 @@ export default function SongListRow({
     useState<PlaylistSongStatus[]>([]);
   const [loadingPlaylistOptions, setLoadingPlaylistOptions] = useState(false);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
+  const [savingSong, setSavingSong] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const { notice, showNotice } = useTransientNotice();
   const playlistPickerRef = useRef<HTMLDivElement | null>(null);
   const playlistTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -129,18 +142,9 @@ export default function SongListRow({
     const shareUrl = `${window.location.origin}/share/${encodeURIComponent(song.shareToken)}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert("Share link copied to clipboard!");
+      showNotice("Song link copied to clipboard.");
     } catch {
-      alert(`Share link: ${shareUrl}`);
-    }
-  };
-
-  const handleUnsave = async () => {
-    setActionError(null);
-    try {
-      await onUnsave(song.shareToken);
-    } catch (error) {
-      setActionError(getErrorMessage(error, "Could not remove this saved song."));
+      showNotice(`Copy this song link: ${shareUrl}`);
     }
   };
 
@@ -151,6 +155,25 @@ export default function SongListRow({
       await onRemove(song.shareToken);
     } catch (error) {
       setActionError(getErrorMessage(error, "Could not remove this song."));
+    }
+  };
+
+  const handleSaveSong = async () => {
+    if (!onToggleSongSaved || savingSong) return;
+
+    setSavingSong(true);
+    setActionError(null);
+    try {
+      await onToggleSongSaved(song.shareToken, isSaved);
+    } catch (error) {
+      setActionError(
+        getErrorMessage(
+          error,
+          isSaved ? "Could not remove this saved song." : "Could not save this song."
+        )
+      );
+    } finally {
+      setSavingSong(false);
     }
   };
 
@@ -206,6 +229,7 @@ export default function SongListRow({
       id={song.shareToken}
       disabled={mode !== "playlist" || !reorderable}
     >
+      {notice && <TransientNotice message={notice} />}
       {editing ? (
         <>
           <input
@@ -276,14 +300,38 @@ export default function SongListRow({
               <ShareIcon />
             </button>
             {mode === "playlist" ? (
-              <button
-                type="button"
-                onClick={() => void handleRemove()}
-                aria-label={`Remove ${song.name} from playlist`}
-                className="inline-flex h-9 items-center justify-center rounded bg-red-600 px-3 text-sm text-white hover:bg-red-700"
-              >
-                Remove
-              </button>
+              onRemove ? (
+                <button
+                  type="button"
+                  onClick={() => void handleRemove()}
+                  aria-label={`Remove ${song.name} from playlist`}
+                  className="inline-flex h-9 items-center justify-center rounded bg-red-600 px-3 text-sm text-white hover:bg-red-700"
+                >
+                  Remove
+                </button>
+              ) : (
+                canSaveSong && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveSong()}
+                    disabled={savingSong}
+                    aria-label={
+                      isSaved
+                        ? `Unsave ${song.name}`
+                        : `Save ${song.name}`
+                    }
+                    className="inline-flex h-9 w-20 shrink-0 items-center justify-center rounded bg-zinc-800 px-0 text-sm text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingSong
+                      ? isSaved
+                        ? "Removing..."
+                        : "Saving..."
+                      : isSaved
+                        ? "Unsave"
+                        : "Save"}
+                  </button>
+                )
+              )
             ) : song.isOwner ? (
               <button
                 type="button"
@@ -296,8 +344,8 @@ export default function SongListRow({
             ) : (
               <button
                 type="button"
-                onClick={() => void handleUnsave()}
-                aria-label="Unsave song"
+                onClick={() => onUnsave(song.shareToken)}
+                aria-label={`Remove ${song.name} from saved songs`}
                 className="inline-flex h-9 w-9 items-center justify-center rounded bg-red-600 text-white hover:bg-red-700"
               >
                 <DeleteIcon />
