@@ -338,7 +338,7 @@ export default function PlaylistPanel({
               ? "No created playlists yet."
               : filter === "saved"
                 ? "No saved playlists yet."
-                : "No playlists yet. Create one to start organizing your music."}
+                : "No playlists yet."}
           </p>
         )}
       </section>

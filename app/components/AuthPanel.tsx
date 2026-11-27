@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthSession } from "@/app/hooks/useAuthSession";
 
@@ -9,6 +10,8 @@ export default function AuthPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,8 +36,15 @@ export default function AuthPanel() {
   };
 
   const signUp = async () => {
+    if (!acceptedTerms) {
+      setTermsError(true);
+      setMessage(null);
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
+    setTermsError(false);
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -49,6 +59,7 @@ export default function AuthPanel() {
       );
       setEmail("");
       setPassword("");
+      setAcceptedTerms(false);
     }
 
     setLoading(false);
@@ -63,9 +74,23 @@ export default function AuthPanel() {
 
     if (mode === "signin") {
       void signIn();
-    } else {
-      void signUp();
+      return;
     }
+
+    if (!acceptedTerms) {
+      setTermsError(true);
+      setMessage(null);
+      return;
+    }
+
+    void signUp();
+  };
+
+  const changeMode = (nextMode: "signin" | "signup") => {
+    setMode(nextMode);
+    setAcceptedTerms(false);
+    setTermsError(false);
+    setMessage(null);
   };
 
   if (session?.user) {
@@ -107,7 +132,7 @@ export default function AuthPanel() {
       >
         <button
           type="button"
-          onClick={() => setMode("signin")}
+          onClick={() => changeMode("signin")}
           role="tab"
           aria-selected={mode === "signin"}
           className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -120,7 +145,7 @@ export default function AuthPanel() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("signup")}
+          onClick={() => changeMode("signup")}
           role="tab"
           aria-selected={mode === "signup"}
           className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
@@ -146,6 +171,52 @@ export default function AuthPanel() {
             placeholder="you@example.com"
           />
         </label>
+
+        {mode === "signup" && (
+          <div>
+            <label className="flex items-start gap-3 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                required
+                checked={acceptedTerms}
+                aria-describedby={termsError ? "terms-acceptance-error" : undefined}
+                onInvalid={() => setTermsError(true)}
+                onChange={(event) => {
+                  setAcceptedTerms(event.target.checked);
+                  setTermsError(false);
+                }}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+              <span>
+                Ich akzeptiere die{" "}
+                <Link
+                  href="/nutzungsbedingungen"
+                  className="underline underline-offset-2 hover:text-zinc-950 dark:hover:text-zinc-50"
+                >
+                  Nutzungsbedingungen
+                </Link>{" "}
+                und habe die{" "}
+                <Link
+                  href="/datenschutz"
+                  className="underline underline-offset-2 hover:text-zinc-950 dark:hover:text-zinc-50"
+                >
+                  Datenschutzerklärung
+                </Link>{" "}
+                zur Kenntnis genommen.
+              </span>
+            </label>
+            {termsError && (
+              <p
+                id="terms-acceptance-error"
+                role="alert"
+                className="mt-2 text-sm text-red-700 dark:text-red-300"
+              >
+                Bitte akzeptiere die Nutzungsbedingungen und bestätige, dass du
+                die Datenschutzerklärung zur Kenntnis genommen hast.
+              </p>
+            )}
+          </div>
+        )}
 
         <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
           Password

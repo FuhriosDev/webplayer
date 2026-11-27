@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import HeaderBar from "@/app/components/HeaderBar";
 import SongList from "@/app/components/SongList";
 import { supabase } from "@/lib/supabaseClient";
@@ -40,12 +41,7 @@ export default function PlaylistPage() {
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
-  const session = useAuthSession();
-  const user = session?.user ?? null;
-  const [loadedShareToken, setLoadedShareToken] = useState<string | null>(null);
-  const loading = loadedShareToken !== shareToken;
   const [error, setError] = useState<string | null>(null);
-
   const [saveStatus, setSaveStatus] = useState<{
     key: string;
     isOwner: boolean;
@@ -64,7 +60,31 @@ export default function PlaylistPage() {
     key: string;
     message: string;
   } | null>(null);
+  const [loadedPlaylistKey, setLoadedPlaylistKey] = useState<string | null>(
+    null
+  );
+  const sessionUserIdRef = useRef<string | null>(null);
+  const handleSessionChange = useCallback((nextSession: Session | null) => {
+    const nextUserId = nextSession?.user.id ?? null;
+    const previousUserId = sessionUserIdRef.current;
+    sessionUserIdRef.current = nextUserId;
+
+    if (previousUserId === null || previousUserId === nextUserId) return;
+
+    setPlaylist(null);
+    setSongs([]);
+    setError(null);
+    setSaveStatus(null);
+    setSaveStatusError(null);
+    setSavingPlaylist(false);
+    setSavedSongStatus(null);
+    setSongSaveStatusError(null);
+  }, []);
+  const session = useAuthSession(handleSessionChange);
+  const user = session?.user ?? null;
   const userId = user?.id;
+  const playlistLoadKey = JSON.stringify([shareToken, userId ?? null]);
+  const loading = loadedPlaylistKey !== playlistLoadKey;
   const saveStatusKey = JSON.stringify([
     userId ?? null,
     playlist?.id ?? shareToken,
@@ -122,10 +142,12 @@ export default function PlaylistPage() {
         );
       } catch (loadError) {
         if (cancelled) return;
+        setPlaylist(null);
+        setSongs([]);
         console.error("Error loading playlist:", loadError);
         setError(getErrorMessage(loadError, "Could not load this playlist."));
       } finally {
-        if (!cancelled) setLoadedShareToken(shareToken);
+        if (!cancelled) setLoadedPlaylistKey(playlistLoadKey);
       }
     };
 
@@ -133,7 +155,7 @@ export default function PlaylistPage() {
     return () => {
       cancelled = true;
     };
-  }, [shareToken]);
+  }, [playlistLoadKey, shareToken, userId]);
 
   useEffect(() => {
     if (!userId || !playlist) return;
@@ -203,6 +225,7 @@ export default function PlaylistPage() {
   const handleRemove = async (shareToken: string) => {
     if (!playlist) return;
     await removeSongFromPlaylist(playlist.id, shareToken);
+    if (sessionUserIdRef.current !== userId) return;
     setSongs((current) =>
       current.filter((song) => song.shareToken !== shareToken)
     );
@@ -216,6 +239,7 @@ export default function PlaylistPage() {
     try {
       if (isSaved) {
         await unsavePlaylist(playlist.id, userId);
+        if (sessionUserIdRef.current !== userId) return;
         setSaveStatus({ key: saveStatusKey, isOwner, isSaved: false });
         setPlaylists((current) =>
           current.filter(
@@ -225,6 +249,7 @@ export default function PlaylistPage() {
         );
       } else {
         await savePlaylist(playlist.id, userId);
+        if (sessionUserIdRef.current !== userId) return;
         setSaveStatus({ key: saveStatusKey, isOwner, isSaved: true });
         setPlaylists((current) =>
           current.some((savedPlaylist) => savedPlaylist.id === playlist.id)
@@ -253,6 +278,8 @@ export default function PlaylistPage() {
     } else {
       await saveSong(userId, shareToken);
     }
+
+    if (sessionUserIdRef.current !== userId) return;
 
     setSavedSongStatus((current) =>
       current?.key === songStatusKey
@@ -300,6 +327,7 @@ export default function PlaylistPage() {
     try {
       await reorderPlaylistSongs(playlist.id, orderedTokens);
     } catch (error) {
+      if (sessionUserIdRef.current !== userId) return;
       console.error("Could not reorder playlist:", error);
       setSongs(previousSongs);
       setError("Could not save the new song order.");

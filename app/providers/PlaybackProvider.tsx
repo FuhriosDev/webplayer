@@ -4,13 +4,16 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Song } from "@/lib/song";
 import { supabase } from "@/lib/supabaseClient";
 import MusicPlayer from "@/app/components/MusicPlayer";
+import { useLibraryState } from "./LibraryStateProvider";
 
 type RepeatMode = "off" | "all" | "one";
 
@@ -35,12 +38,14 @@ function shuffleSongs(songs: Song[]) {
 }
 
 export function PlaybackProvider({ children }: { children: ReactNode }) {
+  const { syncUser } = useLibraryState();
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [sourceQueue, setSourceQueue] = useState<Song[]>([]);
   const [playQueue, setPlayQueue] = useState<Song[]>([]);
   const [playRequest, setPlayRequest] = useState(0);
   const [shuffle, setShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("off");
+  const authUserIdRef = useRef<string | null>(null);
 
   const playSong = useCallback((song: Song, queue: Song[]) => {
     const completeQueue = queue.some(
@@ -71,6 +76,23 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     setSourceQueue([]);
     setPlayQueue([]);
   }, []);
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user.id ?? null;
+      const previousUserId = authUserIdRef.current;
+      authUserIdRef.current = nextUserId;
+      syncUser(nextUserId);
+
+      if (!nextUserId || (previousUserId && previousUserId !== nextUserId)) {
+        stopPlayback();
+        setShuffle(false);
+        setRepeatMode("off");
+      }
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [stopPlayback, syncUser]);
 
   const currentIndex = currentSong
     ? playQueue.findIndex(

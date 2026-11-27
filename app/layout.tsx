@@ -31,7 +31,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <LibraryStateProvider>
-          <PlaybackProvider>{children}</PlaybackProvider>
+          <PlaybackProvider>
+            {children}
+          </PlaybackProvider>
         </LibraryStateProvider>
       </body>
     </html>

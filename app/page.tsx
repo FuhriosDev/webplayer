@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import UploadModal from "./components/UploadModal";
 import SongList from "./components/SongList";
@@ -28,16 +28,17 @@ export default function Home() {
     playlistsLoaded,
     setPlaylists,
     setPlaylistsLoaded,
-    syncUser,
   } = library;
 
+  const sessionUserIdRef = useRef<string | null>(null);
   const handleSessionChange = useCallback((session: Session | null) => {
     const nextUserId = session?.user.id ?? null;
-    if (!syncUser(nextUserId)) return;
+    if (sessionUserIdRef.current === nextUserId) return;
+    sessionUserIdRef.current = nextUserId;
 
     setSongsError(null);
     setPlaylistsError(null);
-  }, [syncUser]);
+  }, []);
   const session = useAuthSession(handleSessionChange);
   const user = session?.user ?? null;
 
