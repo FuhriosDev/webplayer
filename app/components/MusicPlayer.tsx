@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Song } from "@/lib/song";
 
 type MusicPlayerProps = {
@@ -84,22 +84,37 @@ export default function MusicPlayer({
 }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [queueOpen, setQueueOpen] = useState(false);
   const queueControlRef = useRef<HTMLDivElement>(null);
   const queueButtonRef = useRef<HTMLButtonElement>(null);
+  const playAttemptRef = useRef(0);
+
+  const startPlayback = useCallback((audio: HTMLAudioElement, reload = false) => {
+    const attempt = ++playAttemptRef.current;
+    setPlaybackError(null);
+    if (reload) audio.load();
+
+    void audio.play().catch((error) => {
+      if (attempt !== playAttemptRef.current) return;
+      setPlaying(false);
+      setPlaybackError("Playback failed. Press Play to try again.");
+      console.error("Could not start playback:", error);
+    });
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    void audio.play().catch((error) => {
-      setPlaying(false);
-      console.error("Could not start playback:", error);
-    });
-  }, [src, playRequest]);
+    startPlayback(audio, true);
+    return () => {
+      playAttemptRef.current += 1;
+    };
+  }, [src, playRequest, startPlayback]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
@@ -134,13 +149,18 @@ export default function MusicPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (audio.paused) {
-      void audio.play().catch((error) => {
-        console.error("Could not start playback:", error);
-      });
-    } else {
+    if (playing && !audio.paused) {
+      playAttemptRef.current += 1;
       audio.pause();
+      return;
     }
+
+    const shouldReload =
+      !audio.paused ||
+      audio.ended ||
+      audio.error !== null ||
+      audio.readyState === HTMLMediaElement.HAVE_NOTHING;
+    startPlayback(audio, shouldReload);
   };
 
   const handleSeek = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,6 +184,7 @@ export default function MusicPlayer({
   return (
     <footer className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200/80 bg-zinc-50/95 text-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] backdrop-blur dark:border-zinc-800/80 dark:bg-black/95 dark:text-zinc-100">
       <audio
+        key={playRequest}
         ref={audioRef}
         src={src}
         preload="metadata"
@@ -188,8 +209,17 @@ export default function MusicPlayer({
               : 0
           )
         }
-        onPlay={() => setPlaying(true)}
+        onPlaying={() => {
+          setPlaying(true);
+          setPlaybackError(null);
+        }}
         onPause={() => setPlaying(false)}
+        onWaiting={() => setPlaying(false)}
+        onError={(event) => {
+          setPlaying(false);
+          setPlaybackError("Playback failed. Press Play to try again.");
+          console.error("Audio playback failed:", event.currentTarget.error);
+        }}
         onEnded={() => {
           setPlaying(false);
           if (repeatMode === "one" && audioRef.current) {
@@ -207,6 +237,11 @@ export default function MusicPlayer({
           >
             {title || "Now playing"}
           </p>
+          {playbackError && (
+            <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+              {playbackError}
+            </p>
+          )}
         </div>
 
         <div className="col-span-2 row-start-2 flex items-center justify-center gap-0.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:gap-1">

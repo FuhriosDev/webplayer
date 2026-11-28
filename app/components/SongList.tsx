@@ -38,6 +38,7 @@ type SongListProps = {
     shareToken: string,
     isSaved: boolean
   ) => Promise<void>;
+  currentSongToken?: string;
 };
 
 type SongFilter = "all" | "uploads" | "saved";
@@ -64,6 +65,7 @@ export default function SongList({
   canSaveSongs = false,
   savedSongTokens,
   onToggleSongSaved,
+  currentSongToken,
 }: SongListProps) {
   const [pendingAction, setPendingAction] = useState<PendingSongAction | null>(
     null
@@ -82,6 +84,11 @@ export default function SongList({
           if (filter === "saved") return !song.isOwner;
           return true;
         });
+  const songCounts: Record<SongFilter, number> = {
+    all: songs.length,
+    uploads: songs.filter((song) => song.isOwner).length,
+    saved: songs.filter((song) => !song.isOwner).length,
+  };
 
   const handleEdit = async (filePath: string, newName: string) => {
     await renameSong(filePath, newName);
@@ -163,13 +170,16 @@ export default function SongList({
                   type="button"
                   onClick={() => setFilter(filterOption.id)}
                   aria-pressed={filter === filterOption.id}
-                  className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                  className={`inline-flex flex-1 items-center justify-center rounded-lg px-2 py-2 text-sm font-medium transition-all sm:px-3 ${
                     filter === filterOption.id
                       ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
                       : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
-                  {filterOption.label}
+                  <span>{filterOption.label}</span>
+                  <span className="ml-1 text-xs font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+                    {songCounts[filterOption.id]}
+                  </span>
                 </button>
               ))}
             </div>
@@ -209,12 +219,16 @@ export default function SongList({
           strategy={verticalListSortingStrategy}
         >
           <ul>
-            {visibleSongs.map((song) => (
+            {visibleSongs.map((song, index) => (
               <SongListRow
                 key={song.shareToken}
                 song={song}
                 queue={visibleSongs}
                 mode={mode}
+                position={mode === "playlist" ? index + 1 : undefined}
+                isFirst={mode === "playlist" && index === 0}
+                isLast={index === visibleSongs.length - 1}
+                isCurrentSong={song.shareToken === currentSongToken}
                 reorderable={Boolean(onReorder)}
                 onSelect={onSelect}
                 onEdit={handleEdit}

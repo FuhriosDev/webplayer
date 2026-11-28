@@ -7,10 +7,16 @@ import { CSS } from "@dnd-kit/utilities";
 export function SortableSongRow({
   id,
   disabled,
+  isFirst = false,
+  isLast = false,
+  isCurrentSong = false,
   children,
 }: {
   id: string;
   disabled: boolean;
+  isFirst?: boolean;
+  isLast?: boolean;
+  isCurrentSong?: boolean;
   children: ReactNode;
 }) {
   const {
@@ -30,7 +36,10 @@ export function SortableSongRow({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className="group flex flex-wrap items-center gap-y-2 border-b border-zinc-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-zinc-800 dark:hover:bg-zinc-900/60 sm:px-6"
+      aria-current={isCurrentSong ? "true" : undefined}
+      className={`group flex flex-wrap items-center gap-y-2 border-b border-zinc-100 px-4 py-3 transition-colors last:border-b-0 dark:border-zinc-800 sm:px-6 ${
+        isFirst ? "rounded-t-3xl" : ""
+      } ${isLast ? "rounded-b-3xl" : ""} hover:bg-zinc-50/80 dark:hover:bg-zinc-900/60`}
     >
       {disabled ? null : (
         <button

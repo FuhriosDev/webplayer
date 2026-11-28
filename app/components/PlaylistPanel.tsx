@@ -64,6 +64,11 @@ export default function PlaylistPanel({
     if (filter === "saved") return playlist.isSaved;
     return true;
   });
+  const playlistCounts: Record<PlaylistFilter, number> = {
+    all: playlists.length,
+    created: playlists.filter((playlist) => !playlist.isSaved).length,
+    saved: playlists.filter((playlist) => playlist.isSaved).length,
+  };
 
   const handleCreatePlaylist = async (
     event: React.FormEvent<HTMLFormElement>
@@ -198,13 +203,16 @@ export default function PlaylistPanel({
                 type="button"
                 onClick={() => setFilter(filterOption.id)}
                 aria-pressed={filter === filterOption.id}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                className={`inline-flex flex-1 items-center justify-center rounded-lg px-2 py-2 text-sm font-medium transition-all sm:px-3 ${
                   filter === filterOption.id
                     ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-white"
                     : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
-                {filterOption.label}
+                <span>{filterOption.label}</span>
+                <span className="ml-1 text-xs font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+                  {playlistCounts[filterOption.id]}
+                </span>
               </button>
             ))}
           </div>
@@ -243,11 +251,11 @@ export default function PlaylistPanel({
         )}
 
         <ul>
-          {visiblePlaylists.map((playlist) =>
+          {visiblePlaylists.map((playlist, index) =>
             editingPlaylistId === playlist.id ? (
               <li
                 key={playlist.id}
-                className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0 dark:border-zinc-800 sm:px-6"
+                className="first:rounded-t-3xl last:rounded-b-3xl flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0 dark:border-zinc-800 sm:px-6"
               >
                 <input
                   value={editedPlaylistName}
@@ -281,6 +289,20 @@ export default function PlaylistPanel({
             ) : (
               <li
                 key={playlist.id}
+                style={{
+                  borderTopLeftRadius:
+                    index === 0 ? "0rem" : undefined,
+                  borderTopRightRadius:
+                    index === 0 ? "0rem" : undefined,
+                  borderBottomLeftRadius:
+                    index === visiblePlaylists.length - 1
+                      ? "1.5rem"
+                      : undefined,
+                  borderBottomRightRadius:
+                    index === visiblePlaylists.length - 1
+                      ? "1.5rem"
+                      : undefined,
+                }}
                 className="group flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-zinc-800 dark:hover:bg-zinc-900/60 sm:px-6"
               >
                 <button

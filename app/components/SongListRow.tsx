@@ -18,6 +18,10 @@ type SongListRowProps = {
   song: Song;
   queue: Song[];
   mode: "library" | "playlist";
+  position?: number;
+  isFirst?: boolean;
+  isLast?: boolean;
+  isCurrentSong?: boolean;
   reorderable: boolean;
   onSelect: (song: Song, queue: Song[]) => void;
   onEdit: (filePath: string, newName: string) => Promise<void>;
@@ -36,6 +40,10 @@ export default function SongListRow({
   song,
   queue,
   mode,
+  position,
+  isFirst,
+  isLast,
+  isCurrentSong,
   reorderable,
   onSelect,
   onEdit,
@@ -243,6 +251,9 @@ export default function SongListRow({
     <SortableSongRow
       id={song.shareToken}
       disabled={mode !== "playlist" || !reorderable}
+      isFirst={isFirst}
+      isLast={isLast}
+      isCurrentSong={isCurrentSong}
     >
       {notice && <TransientNotice message={notice} />}
       {editing ? (
@@ -273,9 +284,21 @@ export default function SongListRow({
         </div>
       ) : (
         <>
+          {position !== undefined && (
+            <span
+              aria-hidden="true"
+              className="min-w-6 shrink-0 text-center text-xs font-semibold tabular-nums text-blue-600 dark:text-blue-400"
+            >
+              {position}
+            </span>
+          )}
           <button
             type="button"
-            className="min-w-0 flex-1 cursor-pointer truncate py-1 text-left text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
+            className={`min-w-0 flex-1 cursor-pointer truncate py-1 text-left text-sm font-medium transition-colors ${
+              isCurrentSong
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
+            }`}
             onClick={() => onSelect(song, queue)}
           >
             {song.name}

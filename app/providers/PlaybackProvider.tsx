@@ -20,6 +20,7 @@ type RepeatMode = "off" | "all" | "one";
 type PlaybackContextValue = {
   currentSong: Song | null;
   playSong: (song: Song, queue: Song[]) => void;
+  playSongs: (songs: Song[], shouldShuffle?: boolean) => void;
   stopPlayback: () => void;
 };
 
@@ -70,6 +71,17 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
     setCurrentSong(song);
     setPlayRequest((request) => request + 1);
   }, [shuffle]);
+
+  const playSongs = useCallback((songs: Song[], shouldShuffle = false) => {
+    if (songs.length === 0) return;
+
+    const queue = shouldShuffle ? shuffleSongs(songs) : songs;
+    setSourceQueue(songs);
+    setPlayQueue(queue);
+    setShuffle(shouldShuffle);
+    setCurrentSong(queue[0]);
+    setPlayRequest((request) => request + 1);
+  }, []);
 
   const stopPlayback = useCallback(() => {
     setCurrentSong(null);
@@ -177,8 +189,8 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ currentSong, playSong, stopPlayback }),
-    [currentSong, playSong, stopPlayback]
+    () => ({ currentSong, playSong, playSongs, stopPlayback }),
+    [currentSong, playSong, playSongs, stopPlayback]
   );
   const downloadFileName =
     currentSong?.filePath.split("/").pop() || currentSong?.name || "song";

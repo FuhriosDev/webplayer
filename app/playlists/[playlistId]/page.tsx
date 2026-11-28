@@ -12,6 +12,7 @@ import {
   fetchPlaylistSongs,
   removeSongFromPlaylist,
   reorderPlaylistSongs,
+  ensurePlaylistShareToken,
   savePlaylist,
   unsavePlaylist,
   type Playlist,
@@ -26,12 +27,15 @@ import { useAuthSession } from "@/app/hooks/useAuthSession";
 import { getErrorMessage } from "@/lib/errorMessage";
 import { useLibraryState } from "@/app/providers/LibraryStateProvider";
 import { usePlayback } from "@/app/providers/PlaybackProvider";
+import { useTransientNotice } from "@/app/hooks/useTransientNotice";
+import TransientNotice from "@/app/components/TransientNotice";
 
 export default function PlaylistPage() {
   const params = useParams<{ playlistId: string }>();
   const shareToken = params.playlistId;
   const router = useRouter();
   const playback = usePlayback();
+  const { notice, showNotice } = useTransientNotice();
   const {
     setLibraryView,
     setPlaylists,
@@ -42,6 +46,9 @@ export default function PlaylistPage() {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [playlistActionError, setPlaylistActionError] = useState<string | null>(
+    null
+  );
   const [saveStatus, setSaveStatus] = useState<{
     key: string;
     isOwner: boolean;
@@ -222,6 +229,38 @@ export default function PlaylistPage() {
   const handleSelectSong = (song: Song, queue: Song[]) =>
     playback.playSong(song, queue);
 
+  const handlePlayPlaylist = (shouldShuffle: boolean) => {
+    playback.playSongs(songs, shouldShuffle);
+  };
+
+  const handleSharePlaylist = async () => {
+    if (!playlist) return;
+
+    setPlaylistActionError(null);
+    let shareToken = playlist.shareToken;
+    if (!shareToken) {
+      try {
+        shareToken = await ensurePlaylistShareToken(playlist.id);
+        setPlaylist((current) =>
+          current ? { ...current, shareToken } : current
+        );
+      } catch (shareError) {
+        setPlaylistActionError(
+          getErrorMessage(shareError, "Could not create a playlist share link.")
+        );
+        return;
+      }
+    }
+
+    const shareUrl = `${window.location.origin}/playlists/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showNotice("Playlist link copied to clipboard.");
+    } catch {
+      showNotice(`Copy this playlist link: ${shareUrl}`);
+    }
+  };
+
   const handleRemove = async (shareToken: string) => {
     if (!playlist) return;
     await removeSongFromPlaylist(playlist.id, shareToken);
@@ -336,6 +375,7 @@ export default function PlaylistPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
+      {notice && <TransientNotice message={notice} />}
       <HeaderBar
         user={user}
         onProfile={() => {
@@ -379,27 +419,131 @@ export default function PlaylistPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">
               PLAYLIST
             </p>
-            <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
               <h1 className="min-w-0 flex-1 break-words text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-4xl">
                 {playlist.name}
               </h1>
-              {userId && !checkingSaveStatus && !isOwner && (
+              <div className="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => void handleToggleSavedPlaylist()}
-                  disabled={Boolean(currentSaveStatusError) || savingPlaylist}
-                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:px-4 sm:text-sm"
+                  onClick={() => handlePlayPlaylist(false)}
+                  disabled={songs.length === 0}
+                  aria-label="Play playlist"
+                  title="Play playlist"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-950 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto sm:px-3"
                 >
-                  {savingPlaylist
-                    ? isSaved
-                      ? "Removing..."
-                      : "Saving..."
-                    : isSaved
-                      ? "Saved · Remove"
-                      : "Save playlist"}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M7 4v16l13-8z" />
+                  </svg>
+                  <span className="hidden sm:inline">Play</span>
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => handlePlayPlaylist(true)}
+                  disabled={songs.length === 0}
+                  aria-label="Shuffle playlist"
+                  title="Shuffle playlist"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 sm:w-auto sm:px-3"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 7h3l10 10h3" />
+                    <path d="m17 14 3 3-3 3" />
+                    <path d="M4 17h3L17 7h3" />
+                    <path d="m17 4 3 3-3 3" />
+                  </svg>
+                  <span className="hidden sm:inline">Shuffle</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSharePlaylist()}
+                  aria-label="Share playlist"
+                  title="Share playlist"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 sm:w-auto sm:px-3"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4" />
+                  </svg>
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+                {userId && !checkingSaveStatus && !isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleSavedPlaylist()}
+                    disabled={Boolean(currentSaveStatusError) || savingPlaylist}
+                    aria-label={
+                      isSaved ? "Remove saved playlist" : "Save playlist"
+                    }
+                    title={
+                      savingPlaylist
+                        ? isSaved
+                          ? "Removing..."
+                          : "Saving..."
+                        : isSaved
+                          ? "Saved · Remove"
+                          : "Save playlist"
+                    }
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-950 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto sm:px-3"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      {isSaved ? (
+                        <path d="m5 12 4 4L19 6" />
+                      ) : (
+                        <path d="M6 4h12v17l-6-4-6 4z" />
+                      )}
+                    </svg>
+                    <span className="hidden sm:inline">
+                      {savingPlaylist
+                        ? isSaved
+                          ? "Removing..."
+                          : "Saving..."
+                        : isSaved
+                          ? "Saved · Remove"
+                          : "Save"}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
+            {playlistActionError && (
+              <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+                {playlistActionError}
+              </p>
+            )}
             {currentSaveStatusError && (
               <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {currentSaveStatusError}
@@ -430,6 +574,7 @@ export default function PlaylistPage() {
               onRemove={isOwner ? handleRemove : undefined}
               onSelect={handleSelectSong}
               onReorder={isOwner ? handleReorder : undefined}
+              currentSongToken={playback.currentSong?.shareToken}
             />
             {currentSongSaveStatusError && (
               <p role="alert" className="mt-3 w-full text-sm text-red-600 dark:text-red-400">

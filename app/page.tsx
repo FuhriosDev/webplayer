@@ -187,6 +187,7 @@ export default function Home() {
                   refresh={refreshSongs}
                   onUpload={() => setShowModal(true)}
                   onSelect={handleSelectSong}
+                  currentSongToken={playback.currentSong?.shareToken}
                   onDelete={(deletedFilePath) => {
                     if (
                       deletedFilePath &&
