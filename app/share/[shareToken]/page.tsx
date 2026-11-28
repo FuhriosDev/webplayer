@@ -60,7 +60,11 @@ export default function SharePage() {
         if (!response.ok) {
           throw new Error("Song not found or cannot be accessed.");
         }
-        const song: { display_name: string; file_path: string } =
+        const song: {
+          display_name: string;
+          file_path: string;
+          uploader_username: string;
+        } =
           await response.json();
 
         const { data } = supabase.storage
@@ -72,6 +76,7 @@ export default function SharePage() {
           url: data.publicUrl,
           filePath: song.file_path,
           shareToken,
+          artist: song.uploader_username,
         };
         setSharedSong(loadedSong);
         setSongName(loadedSong.name);
@@ -218,6 +223,11 @@ export default function SharePage() {
           <h1 className="mb-6 mt-2 text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-3xl">
             {songName}
           </h1>
+          {sharedSong && (
+            <p className="mb-6 -mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+              by {sharedSong.artist}
+            </p>
+          )}
           {sharedSong && (
             <button
               type="button"

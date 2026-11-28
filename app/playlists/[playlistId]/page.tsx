@@ -539,6 +539,9 @@ export default function PlaylistPage() {
                 )}
               </div>
             </div>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              by {playlist.creatorUsername ?? "Unknown user"}
+            </p>
             {playlistActionError && (
               <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
                 {playlistActionError}

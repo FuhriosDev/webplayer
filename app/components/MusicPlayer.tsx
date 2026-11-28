@@ -6,6 +6,7 @@ import type { Song } from "@/lib/song";
 type MusicPlayerProps = {
   src: string;
   title?: string;
+  artist?: string;
   onEnded: () => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -67,6 +68,7 @@ function ControlButton({
 export default function MusicPlayer({
   src,
   title,
+  artist,
   onEnded,
   onNext,
   onPrevious,
@@ -119,6 +121,23 @@ export default function MusicPlayer({
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || typeof MediaMetadata === "undefined") {
+      return;
+    }
+
+    const mediaSession = navigator.mediaSession;
+    mediaSession.metadata = new MediaMetadata({
+      title: title || "Now playing",
+      artist: artist || "Unknown artist",
+    });
+
+    return () => {
+      mediaSession.metadata = null;
+      mediaSession.playbackState = "none";
+    };
+  }, [artist, title]);
 
   useEffect(() => {
     if (!queueOpen) return;
@@ -212,8 +231,16 @@ export default function MusicPlayer({
         onPlaying={() => {
           setPlaying(true);
           setPlaybackError(null);
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "playing";
+          }
         }}
-        onPause={() => setPlaying(false)}
+        onPause={() => {
+          setPlaying(false);
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = "paused";
+          }
+        }}
         onWaiting={() => setPlaying(false)}
         onError={(event) => {
           setPlaying(false);
@@ -236,6 +263,9 @@ export default function MusicPlayer({
             title={title || "Now playing"}
           >
             {title || "Now playing"}
+          </p>
+          <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+            by {artist || "Unknown artist"}
           </p>
           {playbackError && (
             <p role="alert" className="text-xs text-red-600 dark:text-red-400">
@@ -432,8 +462,11 @@ export default function MusicPlayer({
                               : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
                           }`}
                         >
-                          <span className="min-w-0 flex-1 truncate">
-                            {song.name}
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate">{song.name}</span>
+                            <span className="truncate text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                              by {song.artist ?? "Unknown user"}
+                            </span>
                           </span>
                           {isCurrentSong && (
                             <span className="shrink-0 text-xs text-blue-600 dark:text-blue-400">

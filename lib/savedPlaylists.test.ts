@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   from: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 vi.mock("./supabaseClient", () => ({
   supabase: {
     auth: { getUser: mocks.getUser },
     from: mocks.from,
+    rpc: mocks.rpc,
   },
 }));
 
@@ -23,6 +25,7 @@ import {
 describe("saved playlists", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
   });
 
   it("includes owned playlists and saved references without duplicates", async () => {
@@ -41,12 +44,14 @@ describe("saved playlists", () => {
             name: "Mine",
             created_at: "2026-01-03",
             share_token: null,
+            user_id: "user-1",
           },
           {
             id: "also-saved",
             name: "Mine too",
             created_at: "2026-01-02",
             share_token: "owned-token",
+            user_id: "user-1",
           },
         ],
         error: null,
@@ -72,6 +77,7 @@ describe("saved playlists", () => {
             name: "Shared list",
             created_at: "2026-01-01",
             share_token: "shared-token",
+            user_id: "other-user",
           },
         ],
         error: null,
@@ -81,6 +87,13 @@ describe("saved playlists", () => {
       .mockReturnValueOnce(ownedQuery)
       .mockReturnValueOnce(savedQuery)
       .mockReturnValueOnce(savedPlaylistQuery);
+    mocks.rpc.mockResolvedValueOnce({
+      data: [
+        { user_id: "user-1", username: "owner_name" },
+        { user_id: "other-user", username: "creator_name" },
+      ],
+      error: null,
+    });
 
     await expect(fetchPlaylists()).resolves.toEqual([
       {
@@ -88,22 +101,29 @@ describe("saved playlists", () => {
         name: "Mine",
         created_at: "2026-01-03",
         shareToken: null,
+        creatorUsername: "owner_name",
       },
       {
         id: "also-saved",
         name: "Mine too",
         created_at: "2026-01-02",
         shareToken: "owned-token",
+        creatorUsername: "owner_name",
       },
       {
         id: "shared",
         name: "Shared list",
         created_at: "2026-01-01",
         shareToken: "shared-token",
+        creatorUsername: "creator_name",
         isSaved: true,
       },
     ]);
     expect(savedPlaylistQuery.in).toHaveBeenCalledWith("id", ["shared"]);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.rpc).toHaveBeenCalledWith("get_public_profiles", {
+      p_user_ids: ["user-1", "other-user"],
+    });
   });
 
   it("reports playlist owner and saved status", async () => {
@@ -147,6 +167,7 @@ describe("saved playlists", () => {
           name: "My playlist",
           created_at: "2026-01-01",
           share_token: null,
+          user_id: "owner-user",
         },
         error: null,
       }),
@@ -160,6 +181,7 @@ describe("saved playlists", () => {
       name: "My playlist",
       created_at: "2026-01-01",
       shareToken: null,
+      creatorUsername: "Unknown user",
     });
     expect(sharedLookup.eq).toHaveBeenCalledWith(
       "share_token",

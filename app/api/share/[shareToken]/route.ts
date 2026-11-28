@@ -21,7 +21,7 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from("songs_meta")
-    .select("display_name, file_path")
+    .select("display_name, file_path, user_id")
     .eq("share_token", shareToken)
     .maybeSingle();
 
@@ -34,8 +34,21 @@ export async function GET(
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  const { data: profiles, error: profileError } = await supabaseAdmin.rpc(
+    "get_public_profiles",
+    { p_user_ids: [data.user_id] }
+  );
+  if (profileError) {
+    console.error("Share profile lookup failed:", profileError.message);
+    return Response.json({ error: "Unable to load share" }, { status: 500 });
+  }
+
   return Response.json(
-    { display_name: data.display_name, file_path: data.file_path },
+    {
+      display_name: data.display_name,
+      file_path: data.file_path,
+      uploader_username: profiles?.[0]?.username ?? "Unknown user",
+    },
     { headers: { "Cache-Control": "no-store" } }
   );
 }

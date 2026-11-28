@@ -208,6 +208,7 @@ export function PlaybackProvider({ children }: { children: ReactNode }) {
         <MusicPlayer
           src={currentSong.url}
           title={currentSong.name}
+          artist={currentSong.artist}
           onEnded={handleSongEnded}
           onNext={handleNext}
           onPrevious={handlePrevious}

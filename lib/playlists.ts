@@ -1,11 +1,14 @@
 import { supabase } from "./supabaseClient";
 import type { Song } from "./song";
+import { fetchPublicUsernames } from "./profiles";
+import { fetchSharedSongs } from "./sharedSongs";
 
 export type Playlist = {
   id: string;
   name: string;
   created_at: string;
   shareToken: string | null;
+  creatorUsername?: string;
   isSaved?: boolean;
 };
 
@@ -20,24 +23,24 @@ export type PlaylistSaveStatus = {
 
 export type PlaylistSong = Song;
 
-type SharedSong = {
-  display_name: string;
-  file_path: string;
-};
-
 type PlaylistRow = {
   id: string;
   name: string;
   created_at: string;
   share_token: string | null;
+  user_id: string;
 };
 
-function toPlaylist(playlist: PlaylistRow): Playlist {
+function toPlaylist(
+  playlist: PlaylistRow,
+  creatorUsername?: string
+): Playlist {
   return {
     id: playlist.id,
     name: playlist.name,
     created_at: playlist.created_at,
     shareToken: playlist.share_token,
+    creatorUsername,
   };
 }
 
@@ -52,7 +55,7 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
 
   const { data: ownedPlaylists, error: ownedError } = await supabase
     .from("playlists")
-    .select("id, name, created_at, share_token")
+    .select("id, name, created_at, share_token, user_id")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -75,20 +78,28 @@ export async function fetchPlaylists(): Promise<Playlist[]> {
     ),
   ];
 
-  if (savedIds.length === 0) return owned.map(toPlaylist);
+  let savedPlaylists: PlaylistRow[] = [];
+  if (savedIds.length > 0) {
+    const { data, error: playlistsError } = await supabase
+      .from("playlists")
+      .select("id, name, created_at, share_token, user_id")
+      .in("id", savedIds)
+      .order("created_at", { ascending: false });
 
-  const { data: savedPlaylists, error: playlistsError } = await supabase
-    .from("playlists")
-    .select("id, name, created_at, share_token")
-    .in("id", savedIds)
-    .order("created_at", { ascending: false });
+    if (playlistsError) throw playlistsError;
+    savedPlaylists = data ?? [];
+  }
 
-  if (playlistsError) throw playlistsError;
-
+  const allPlaylists = [...owned, ...savedPlaylists];
+  const usernames = await fetchPublicUsernames(
+    allPlaylists.map((playlist) => playlist.user_id)
+  );
   return [
-    ...owned.map(toPlaylist),
-    ...(savedPlaylists ?? []).map((playlist) => ({
-      ...toPlaylist(playlist),
+    ...owned.map((playlist) =>
+      toPlaylist(playlist, usernames.get(playlist.user_id) ?? "Unknown user")
+    ),
+    ...savedPlaylists.map((playlist) => ({
+      ...toPlaylist(playlist, usernames.get(playlist.user_id) ?? "Unknown user"),
       isSaved: true,
     })),
   ];
@@ -234,12 +245,13 @@ export async function createPlaylist(rawName: string): Promise<Playlist> {
   const { data, error } = await supabase
     .from("playlists")
     .insert({ user_id: user.id, name })
-    .select("id, name, created_at, share_token")
+    .select("id, name, created_at, share_token, user_id")
     .single();
 
   if (error) throw error;
 
-  return toPlaylist(data);
+  const usernames = await fetchPublicUsernames([data.user_id]);
+  return toPlaylist(data, usernames.get(data.user_id) ?? "Unknown user");
 }
 
 export async function fetchPlaylistSongs(
@@ -253,31 +265,15 @@ export async function fetchPlaylistSongs(
 
   if (error) throw error;
 
-  const songs = await Promise.all(
-    (items ?? []).map(async (item): Promise<PlaylistSong> => {
-      const response = await fetch(
-        `/api/share/${encodeURIComponent(item.share_token)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Could not load playlist song (${response.status}).`);
-      }
-
-      const shared: SharedSong = await response.json();
-      const url = supabase.storage
-        .from("songs")
-        .getPublicUrl(shared.file_path).data.publicUrl;
-
-      return {
-        name: shared.display_name,
-        url,
-        filePath: shared.file_path,
-        shareToken: item.share_token,
-      };
-    })
-  );
-
-  return songs;
+  const tokens = (items ?? []).map((item) => item.share_token);
+  const sharedSongs = await fetchSharedSongs(tokens);
+  return tokens.map((token) => {
+    const song = sharedSongs.get(token);
+    if (!song) {
+      throw new Error("Could not load a playlist song because it is unavailable.");
+    }
+    return song;
+  });
 }
 
 export async function addSongToPlaylist(
@@ -362,24 +358,33 @@ export async function fetchPlaylist(
 ): Promise<Playlist | null> {
   const { data: sharedPlaylist, error: shareError } = await supabase
     .from("playlists")
-    .select("id, name, created_at, share_token")
+    .select("id, name, created_at, share_token, user_id")
     .eq("share_token", shareToken)
     .maybeSingle();
 
   if (shareError) throw shareError;
   if (sharedPlaylist) {
-    return toPlaylist(sharedPlaylist);
+    const usernames = await fetchPublicUsernames([sharedPlaylist.user_id]);
+    return toPlaylist(
+      sharedPlaylist,
+      usernames.get(sharedPlaylist.user_id) ?? "Unknown user"
+    );
   }
 
   const { data: ownedPlaylist, error: ownerError } = await supabase
     .from("playlists")
-    .select("id, name, created_at, share_token")
+    .select("id, name, created_at, share_token, user_id")
     .eq("id", shareToken)
     .maybeSingle();
 
   if (ownerError) throw ownerError;
 
-  return ownedPlaylist ? toPlaylist(ownedPlaylist) : null;
+  if (!ownedPlaylist) return null;
+  const usernames = await fetchPublicUsernames([ownedPlaylist.user_id]);
+  return toPlaylist(
+    ownedPlaylist,
+    usernames.get(ownedPlaylist.user_id) ?? "Unknown user"
+  );
 }
 
 export async function reorderPlaylistSongs(

@@ -314,7 +314,10 @@ export default function PlaylistPanel({
                   }
                   className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
                 >
-                  {playlist.name}
+                  <span className="block truncate">{playlist.name}</span>
+                  <span className="block truncate text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                    by {playlist.creatorUsername ?? "Unknown user"}
+                  </span>
                 </button>
                 <OverflowMenu
                   label={`More options for ${playlist.name}`}

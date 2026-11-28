@@ -294,14 +294,17 @@ export default function SongListRow({
           )}
           <button
             type="button"
-            className={`min-w-0 flex-1 cursor-pointer truncate py-1 text-left text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 flex-col cursor-pointer py-1 text-left text-sm font-medium transition-colors ${
               isCurrentSong
                 ? "text-blue-600 dark:text-blue-400"
                 : "text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-100 dark:group-hover:text-white"
             }`}
             onClick={() => onSelect(song, queue)}
           >
-            {song.name}
+            <span className="w-full truncate">{song.name}</span>
+            <span className="w-full truncate text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              by {song.artist ?? "Unknown user"}
+            </span>
           </button>
           <div className="flex items-center gap-1">
             <div ref={playlistPickerRef} className="relative">

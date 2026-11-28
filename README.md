@@ -32,6 +32,24 @@ Run ESLint with `npm run lint` and the TypeScript check with `npx tsc --noEmit`.
 
 Apply SQL migrations from `supabase/migrations` to your Supabase project before relying on database functions used by the app.
 
+## Profiles and audio metadata
+
+The `20261128000000_profiles_usernames.sql` migration creates username profiles,
+backfills existing accounts with a generated username, and creates a profile
+when a new account is registered. Apply it before enabling username registration
+or profile settings.
+
+Uploads are stored and played as their original audio bytes; the upload flow
+does not parse or overwrite embedded tags. Playback streams the public storage
+URL through an HTML audio element and supplies the song display name and
+uploader username through the browser Media Session API. Supported browsers
+and connected media systems can use this metadata for lock screens and car
+controls. Support varies by browser, operating system, and car system, and some
+players may continue to prefer embedded file tags or the URL's filename.
+Downloaded audio retains its original tags: adding ID3 tags to MP3s (or
+equivalent metadata to other formats) would require rewriting or remuxing files,
+which this app intentionally does not do.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

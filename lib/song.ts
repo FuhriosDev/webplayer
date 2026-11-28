@@ -3,5 +3,6 @@ export type Song = {
   url: string;
   filePath: string;
   shareToken: string;
+  artist?: string;
   isOwner?: boolean;
 };

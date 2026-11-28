@@ -50,6 +50,7 @@ function savedSongsQuery(result: unknown) {
 describe("song data loading errors", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
     vi.stubGlobal("fetch", mocks.fetch);
   });
 
@@ -111,7 +112,7 @@ describe("song data loading errors", () => {
     mocks.fetch.mockResolvedValue({ ok: false, status: 404 });
 
     await expect(fetchSongs()).rejects.toThrow(
-      "Could not load saved song (404)."
+      "Could not load shared songs (404)."
     );
   });
 
@@ -131,7 +132,7 @@ describe("song data loading errors", () => {
     mocks.fetch.mockResolvedValue({ ok: false, status: 404 });
 
     await expect(fetchPlaylistSongs("playlist-1")).rejects.toThrow(
-      "Could not load playlist song (404)."
+      "Could not load shared songs (404)."
     );
   });
 
@@ -191,12 +192,14 @@ describe("song data loading errors", () => {
             name: "Favorites",
             created_at: "2026-01-01",
             share_token: null,
+            user_id: "user-1",
           },
           {
             id: "playlist-2",
             name: "Road trip",
             created_at: "2026-01-02",
             share_token: null,
+            user_id: "user-2",
           },
         ],
         error: null,
@@ -218,6 +221,13 @@ describe("song data loading errors", () => {
       .mockReturnValueOnce(playlistsQuery)
       .mockReturnValueOnce(savedPlaylistsQuery)
       .mockReturnValueOnce(membershipQuery);
+    mocks.rpc.mockResolvedValueOnce({
+      data: [
+        { user_id: "user-1", username: "playlist_owner" },
+        { user_id: "user-2", username: "another_owner" },
+      ],
+      error: null,
+    });
 
     await expect(fetchPlaylistsForSong("share-token")).resolves.toEqual([
       {
@@ -225,6 +235,7 @@ describe("song data loading errors", () => {
         name: "Favorites",
         created_at: "2026-01-01",
         shareToken: null,
+        creatorUsername: "playlist_owner",
         containsSong: false,
       },
       {
@@ -232,8 +243,10 @@ describe("song data loading errors", () => {
         name: "Road trip",
         created_at: "2026-01-02",
         shareToken: null,
+        creatorUsername: "another_owner",
         containsSong: true,
       },
     ]);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
   });
 });

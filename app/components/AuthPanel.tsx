@@ -4,11 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthSession } from "@/app/hooks/useAuthSession";
+import {
+  getUsernameValidationError,
+  USERNAME_MAX_LENGTH,
+  USERNAME_PATTERN,
+} from "@/lib/username";
 
 export default function AuthPanel() {
   const session = useAuthSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
@@ -36,6 +42,12 @@ export default function AuthPanel() {
   };
 
   const signUp = async () => {
+    const usernameError = getUsernameValidationError(username);
+    if (usernameError) {
+      setMessage(usernameError);
+      return;
+    }
+
     if (!acceptedTerms) {
       setTermsError(true);
       setMessage(null);
@@ -46,23 +58,53 @@ export default function AuthPanel() {
     setMessage(null);
     setTermsError(false);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const { data: isAvailable, error: availabilityError } =
+        await supabase.rpc("is_username_available", {
+          p_username: username.trim(),
+        });
+      if (availabilityError) {
+        setMessage("Could not check username availability. Please try again.");
+        return;
+      }
+      if (!isAvailable) {
+        setMessage("That username is already taken. Choose another one.");
+        return;
+      }
 
-    if (error) {
-      setMessage(error.message);
-    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username: username.trim() } },
+      });
+
+      if (error) {
+        const usernameTaken =
+          error.code === "23505" ||
+          /username.*(duplicate|unique|taken)/i.test(error.message);
+        setMessage(
+          usernameTaken
+            ? "That username is already taken. Choose another one."
+            : error.message
+        );
+      } else {
+        setMessage(
+          "Check your email for confirmation or magic link instructions."
+        );
+        setEmail("");
+        setPassword("");
+        setUsername("");
+        setAcceptedTerms(false);
+      }
+    } catch (error) {
       setMessage(
-        "Check your email for confirmation or magic link instructions."
+        error instanceof Error
+          ? error.message
+          : "Could not create your account. Please try again."
       );
-      setEmail("");
-      setPassword("");
-      setAcceptedTerms(false);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const signOut = async () => {
@@ -83,6 +125,12 @@ export default function AuthPanel() {
       return;
     }
 
+    const usernameError = getUsernameValidationError(username);
+    if (usernameError) {
+      setMessage(usernameError);
+      return;
+    }
+
     void signUp();
   };
 
@@ -91,6 +139,7 @@ export default function AuthPanel() {
     setAcceptedTerms(false);
     setTermsError(false);
     setMessage(null);
+    setUsername("");
   };
 
   if (session?.user) {
@@ -173,7 +222,33 @@ export default function AuthPanel() {
         </label>
 
         {mode === "signup" && (
-          <div>
+          <>
+            <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+              Username
+              <input
+                type="text"
+                autoComplete="username"
+                required
+                minLength={3}
+                maxLength={USERNAME_MAX_LENGTH}
+                pattern={USERNAME_PATTERN.source}
+                value={username}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  setMessage(
+                    event.target.value
+                      ? getUsernameValidationError(event.target.value)
+                      : null
+                  );
+                }}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+                placeholder="your_username"
+                aria-describedby="username-hint"
+              />
+              <span id="username-hint" className="text-xs text-zinc-500 dark:text-zinc-400">
+                3–24 characters: letters, numbers, dots, underscores, or hyphens.
+              </span>
+            </label>
             <label className="flex items-start gap-3 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
               <input
                 type="checkbox"
@@ -215,7 +290,7 @@ export default function AuthPanel() {
                 die Datenschutzerklärung zur Kenntnis genommen hast.
               </p>
             )}
-          </div>
+          </>
         )}
 
         <label className="flex flex-col gap-2 text-sm text-zinc-700 dark:text-zinc-300">
